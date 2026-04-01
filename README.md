@@ -112,17 +112,24 @@ Advanced hotel room thermostat system built on ESP32-S3 with 4.0" capacitive tou
 
 ### Modbus Testing
 
-Three Python test scripts are provided in `/test` directory:
+Unified Python test script with multiple modes:
 
 ```bash
-# Quick automated test (all functions)
-python test/quick_test.py
+# Quick test (single cycle, all functions)
+python test/modbus_test.py --quick
 
-# 3-cycle automated test
-python test/run_test.py
+# Automated N-cycle test
+python test/modbus_test.py --cycles 5
 
-# Interactive continuous test
+# Continuous test loop (Ctrl+C to stop)
+python test/modbus_test.py --continuous
+
+# Interactive menu
 python test/modbus_test.py
+
+# Custom port/slave address
+python test/modbus_test.py --port COM10 --slave 2 --quick
+```
 ```
 
 **Requirements**: `pip install pymodbus pyserial colorama`
@@ -173,9 +180,7 @@ HotelRoomThermostat/
 │   ├── ui_PinEntry.c         # PIN keypad screen
 │   └── assets/               # Images, fonts
 ├── test/
-│   ├── modbus_test.py        # Interactive Modbus test
-│   ├── run_test.py           # Automated 3-cycle test
-│   ├── quick_test.py         # Quick full-function test
+│   ├── modbus_test.py        # Unified Modbus test suite (3 modes)
 │   └── README_MODBUS_TEST.md # Test documentation
 ├── docs/
 │   ├── FSD.md                # Functional specification (Serbian)
