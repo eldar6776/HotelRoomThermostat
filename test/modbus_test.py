@@ -337,27 +337,37 @@ def test_write_coils(client, slave_id, verbose=True):
     
     return True
 
-def test_weather_data_write(client, slave_id, verbose=True):
-    """Test writing weather forecast data"""
+def test_weather_data_write(client, slave_id, verbose=True, cycle=0):
+    """Test writing weather forecast data with varying temperatures per cycle"""
     if verbose:
         print_header("TEST: Write Weather Forecast Data")
     
     # Write weather watchdog trigger
     if not safe_write_register(client, slave_id, MB_REG_WX_WATCHDOG, 1):
         return False
-    print_info("Weather watchdog triggered")
+    print_info(f"Weather watchdog triggered (Cycle {cycle})")
     
-    # Write 5 days of weather data (3 registers per day)
+    # Generate varying weather data for each cycle
+    # Base temperatures + cycle offset to ensure different data every time
+    base_temp = 20 + (cycle % 10)  # 20-29°C base
+    
+    # Write 5 days of weather data (3 registers per day) with different values per cycle
     weather_data = [
-        (1 | (0 << 8), 250, 180),  # Mon, Sunny, 25°C/18°C
-        (2 | (1 << 8), 220, 150),  # Tue, Heating, 22°C/15°C
-        (3 | (2 << 8), 280, 200),  # Wed, Cooling, 28°C/20°C
-        (4 | (0 << 8), 260, 190),  # Thu, Sunny, 26°C/19°C
-        (5 | (0 << 8), 240, 170),  # Fri, Sunny, 24°C/17°C
+        # Day 0: Monday
+        (1 | ((cycle % 3) << 8), base_temp * 10 + 50, base_temp * 10 - 20),
+        # Day 1: Tuesday  
+        (2 | (((cycle + 1) % 3) << 8), (base_temp + 2) * 10, (base_temp - 3) * 10),
+        # Day 2: Wednesday
+        (3 | (((cycle + 2) % 3) << 8), (base_temp + 5) * 10, (base_temp + 1) * 10),
+        # Day 3: Thursday
+        (4 | ((cycle % 3) << 8), (base_temp + 3) * 10, (base_temp - 1) * 10),
+        # Day 4: Friday
+        (5 | (((cycle + 1) % 3) << 8), (base_temp + 1) * 10, (base_temp - 2) * 10),
     ]
     
     base_addr = 30  # MB_REG_WX_BASE
     day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    icon_names = {0: "Sunny", 1: "Heating", 2: "Cooling"}
     
     for day_idx, (packed, temp_high, temp_low) in enumerate(weather_data):
         addr = base_addr + day_idx * 3
@@ -370,7 +380,8 @@ def test_weather_data_write(client, slave_id, verbose=True):
         
         day_id = packed & 0xFF
         icon_id = (packed >> 8) & 0xFF
-        print_success(f"Day {day_idx}: {day_names[day_id]}, Icon {icon_id}, High {temp_high/10:.1f}°C, Low {temp_low/10:.1f}°C")
+        icon_name = icon_names.get(icon_id, f"Unknown({icon_id})")
+        print_success(f"Day {day_idx}: {day_names[day_id]}, {icon_name}, High {temp_high/10:.1f}°C, Low {temp_low/10:.1f}°C")
     
     return True
 
@@ -403,34 +414,61 @@ def run_quick_test(client, slave_id):
     test_write_coils(client, slave_id)
     time.sleep(0.5)
     
-    test_weather_data_write(client, slave_id)
+    test_weather_data_write(client, slave_id, cycle=1)
     
     print_header("Quick test completed successfully!")
 
 def run_cycle_test(client, slave_id, cycles):
     """Run N-cycle automated test"""
-    print_header(f"Automated Test Mode - {cycles} Cycles")
+    print_header(f"Automated Test Mode - {cycles} Cycles (Full Test)")
     
     for cycle in range(1, cycles + 1):
         print(f"\n{Fore.MAGENTA}{'=' * 70}")
         print(f"{Fore.MAGENTA}Test Cycle #{cycle}/{cycles}")
         print(f"{Fore.MAGENTA}{'=' * 70}{Style.RESET_ALL}")
         
-        test_read_holding_registers(client, slave_id, verbose=False)
+        # Read all holding registers
+        test_read_holding_registers(client, slave_id, verbose=True)
         time.sleep(0.5)
         
-        test_read_input_registers(client, slave_id, verbose=False)
+        # Read all input registers
+        test_read_input_registers(client, slave_id, verbose=True)
         time.sleep(0.5)
         
-        new_temp = 20.0 + cycle
-        test_write_target_temp(client, slave_id, new_temp, verbose=False)
+        # Read coils
+        test_read_coils(client, slave_id, verbose=True)
         time.sleep(0.5)
         
-        test_read_coils(client, slave_id, verbose=False)
+        # Read discrete inputs
+        test_read_discrete_inputs(client, slave_id, verbose=True)
         time.sleep(0.5)
         
-        print_info(f"Cycle {cycle}/{cycles} completed")
+        # Cycle through target temperatures
+        temps = [20.0, 22.0, 24.0, 21.5, 23.0, 19.0, 25.0]
+        test_write_target_temp(client, slave_id, temps[cycle % len(temps)])
+        time.sleep(0.5)
+        
+        # Cycle through HVAC modes
+        modes = [HVAC_OFF, HVAC_HEAT, HVAC_COOL]
+        test_write_hvac_mode(client, slave_id, modes[cycle % len(modes)])
+        time.sleep(0.5)
+        
+        # Cycle through fan speeds
+        speeds = [FAN_AUTO, FAN_LOW, FAN_MID, FAN_HIGH]
+        test_write_fan_speed(client, slave_id, speeds[cycle % len(speeds)])
+        time.sleep(0.5)
+        
+        # Test coil writes (DND/MUR ON/OFF)
+        test_write_coils(client, slave_id)
+        time.sleep(0.5)
+        
+        # Weather data write every cycle with varying data
+        test_weather_data_write(client, slave_id, cycle=cycle)
+        time.sleep(0.5)
+        
+        print_success(f"Cycle {cycle}/{cycles} completed successfully!")
         if cycle < cycles:
+            print_info("Pausing 1 second before next cycle...")
             time.sleep(1.0)
     
     print(f"\n{Fore.CYAN}{'=' * 70}")
@@ -478,10 +516,9 @@ def run_continuous_test(client, slave_id, interval=2.0):
             test_write_coils(client, slave_id)
             time.sleep(0.5)
             
-            # Weather test every 5 cycles
-            if test_count % 5 == 0:
-                test_weather_data_write(client, slave_id)
-                time.sleep(0.5)
+            # Weather data write EVERY cycle with varying data
+            test_weather_data_write(client, slave_id, cycle=test_count)
+            time.sleep(0.5)
             
             print_info(f"Waiting {interval} seconds before next cycle...")
             time.sleep(interval)
