@@ -5,6 +5,20 @@ All notable changes to the Hotel Room Thermostat project will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Test Infrastructure**
+  - Enhanced cycle test mode to perform comprehensive testing of ALL Modbus functions
+  - Test now covers all 46 holding registers, 7 input registers, 2 coils, and 4 discrete inputs
+  - Added cycling through 7 different target temperatures (20.0-25.0°C range)
+  - Added cycling through 3 HVAC modes (OFF, HEAT, COOL)
+  - Added cycling through 4 fan speeds (AUTO, LOW, MID, HIGH)
+  - Weather data now written every cycle with dynamically varying values
+  - Weather temperatures cycle 20-29°C base with rotating icons (Sunny/Heating/Cooling)
+  - Enabled verbose output for all test functions to show detailed results
+  - Each cycle now performs 10+ test operations instead of minimal 4
+
 ## [1.0.0] - 2026-04-01
 
 ### 🎉 Initial Release - Production Ready
