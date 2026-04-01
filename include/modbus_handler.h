@@ -67,8 +67,8 @@ typedef wx_day_t forecast_data_t;
 typedef struct {
     volatile uint16_t hreg[MB_HREG_COUNT];
     volatile uint16_t ireg[MB_IREG_COUNT];  // input registers (read-only)
-    bool              weather_stale;
-    unsigned long     wx_last_update_ms;
+    volatile bool     weather_stale;
+    volatile unsigned long wx_last_update_ms;
     wx_day_t          wx_days[WX_MAX_DAYS];
 } mb_data_t;
 

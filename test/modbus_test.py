@@ -342,11 +342,6 @@ def test_weather_data_write(client, slave_id, verbose=True, cycle=0):
     if verbose:
         print_header("TEST: Write Weather Forecast Data")
     
-    # Write weather watchdog trigger
-    if not safe_write_register(client, slave_id, MB_REG_WX_WATCHDOG, 1):
-        return False
-    print_info(f"Weather watchdog triggered (Cycle {cycle})")
-    
     # Generate varying weather data for each cycle
     # Base temperatures + cycle offset to ensure different data every time
     base_temp = 20 + (cycle % 10)  # 20-29°C base
@@ -369,6 +364,7 @@ def test_weather_data_write(client, slave_id, verbose=True, cycle=0):
     day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     icon_names = {0: "Sunny", 1: "Heating", 2: "Cooling"}
     
+    # CRITICAL: Write ALL weather data FIRST (registers 30-44)
     for day_idx, (packed, temp_high, temp_low) in enumerate(weather_data):
         addr = base_addr + day_idx * 3
         if not safe_write_register(client, slave_id, addr, packed):
@@ -382,6 +378,12 @@ def test_weather_data_write(client, slave_id, verbose=True, cycle=0):
         icon_id = (packed >> 8) & 0xFF
         icon_name = icon_names.get(icon_id, f"Unknown({icon_id})")
         print_success(f"Day {day_idx}: {day_names[day_id]}, {icon_name}, High {temp_high/10:.1f}°C, Low {temp_low/10:.1f}°C")
+    
+    # CRITICAL: Write watchdog trigger LAST (register 29)
+    # This triggers firmware callback to parse the data we just wrote above
+    if not safe_write_register(client, slave_id, MB_REG_WX_WATCHDOG, 1):
+        return False
+    print_info(f"Weather watchdog triggered (Cycle {cycle}) - Parsing complete")
     
     return True
 

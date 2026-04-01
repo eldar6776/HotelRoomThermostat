@@ -21,11 +21,11 @@ extern "C" {
 }
 
 // ── Timing constants ──────────────────────────────────────────────────────────
-#define HVAC_UPDATE_MS          500UL   // NTC read + relay logic period
+#define HVAC_UPDATE_MS         500UL   // NTC read + relay logic period
 #define MODBUS_WATCHDOG_MS   60000UL   // weather watchdog check period
 #define CLOCK_UPDATE_MS       1000UL   // clock label refresh period
 #define INACTIVITY_CHECK_MS   1000UL   // inactivity poll period
-#define WEATHER_REDRAW_MS     5000UL   // weather UI refresh period
+#define WEATHER_REDRAW_MS      500UL   // weather UI refresh period (check for new data)
 
 // ── Timestamps ────────────────────────────────────────────────────────────────
 static unsigned long t_hvac      = 0;
@@ -34,6 +34,7 @@ static unsigned long t_clock     = 0;
 static unsigned long t_inact     = 0;
 static unsigned long t_weather   = 0;
 static bool          s_weather_stale_prev = true;
+static unsigned long s_weather_last_update_ms = 0;  // Track last weather update timestamp
 
 // ── Clock helpers ─────────────────────────────────────────────────────────────
 // RTC is not set in this firmware — show uptime-based time as placeholder
@@ -198,11 +199,15 @@ void loop(void)
         modbus_check_watchdog();
     }
 
-    // Rebuild weather UI when stale flag changes
+    // Rebuild weather UI when stale flag changes OR new data arrives
     if (now - t_weather >= WEATHER_REDRAW_MS) {
         t_weather = now;
-        if (g_mb.weather_stale != s_weather_stale_prev) {
+        bool stale_changed = (g_mb.weather_stale != s_weather_stale_prev);
+        bool new_data = (g_mb.wx_last_update_ms != s_weather_last_update_ms);
+        
+        if (stale_changed || new_data) {
             s_weather_stale_prev = g_mb.weather_stale;
+            s_weather_last_update_ms = g_mb.wx_last_update_ms;
             update_weather_forecast_ui();
         }
     }

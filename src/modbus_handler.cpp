@@ -51,6 +51,9 @@ static uint16_t cb_hreg_write(TRegister *reg, uint16_t val)
             if (day_id < 7) {
                 strncpy(g_mb.wx_days[d].day_name, DAY_NAMES[day_id],
                         sizeof(g_mb.wx_days[d].day_name) - 1);
+                g_mb.wx_days[d].day_name[sizeof(g_mb.wx_days[d].day_name) - 1] = '\0';
+            } else {
+                g_mb.wx_days[d].day_name[0] = '\0';  // Invalid day_id, clear name
             }
             g_mb.wx_days[d].icon_id       = (uint8_t)(icon_id & 0xFF);
             g_mb.wx_days[d].temp_high_c10 = t_high;
