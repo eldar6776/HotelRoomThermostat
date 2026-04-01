@@ -74,10 +74,10 @@ void settings3_loaded_cb(lv_event_t *e)
     lv_slider_set_value(ui_SliderBrightLow,  g_sys_cfg.bright_low  * 100 / 1023, LV_ANIM_OFF);
 }
 
-// Forward declarations for PNG images
-extern const lv_img_dsc_t ui_img_heating_png;
-extern const lv_img_dsc_t ui_img_cooling_png;
-extern const lv_img_dsc_t ui_img_sunny_png;
+// Forward declarations for PNG images (weather forecast icons)
+extern const lv_img_dsc_t ui_img_sunny_png;      // WX_ICON_SUNNY (0)
+extern const lv_img_dsc_t ui_img_sunny_day_png;  // WX_ICON_PARTLY_CLR (1)
+extern const lv_img_dsc_t ui_img_hvac_png;       // Generic fallback icon
 
 // ── Clean screen timer ────────────────────────────────────────────────────────
 static lv_timer_t *s_clean_timer = NULL;
@@ -101,11 +101,22 @@ static void clean_timer_cb(lv_timer_t *t)
 // ── Weather forecast ──────────────────────────────────────────────────────────
 static const lv_img_dsc_t *weather_icon_src(uint8_t icon_id)
 {
+    // Map weather icon IDs to LVGL image assets
+    // NOTE: Currently limited by available icons in SquareLine project
+    // TODO: Add proper weather icons (cloudy, rainy, snowy, stormy, etc.)
     switch (icon_id) {
-        case 1:  return &ui_img_heating_png;
-        case 2:  return &ui_img_cooling_png;
-        case 0:
-        default: return &ui_img_sunny_png;
+        case WX_ICON_SUNNY:       // 0 - Clear sky
+            return &ui_img_sunny_png;
+        case WX_ICON_PARTLY_CLR:  // 1 - Partly cloudy / Sunny day
+            return &ui_img_sunny_day_png;
+        case WX_ICON_CLOUDY:      // 2 - Cloudy (fallback to HVAC icon until proper icon added)
+        case WX_ICON_RAINY:       // 3 - Rain (fallback)
+        case WX_ICON_SNOWY:       // 4 - Snow (fallback)
+        case WX_ICON_STORMY:      // 5 - Storm (fallback)
+        case WX_ICON_FOGGY:       // 6 - Fog (fallback)
+        case WX_ICON_WINDY:       // 7 - Wind (fallback)
+        default:
+            return &ui_img_hvac_png;  // Generic fallback icon
     }
 }
 

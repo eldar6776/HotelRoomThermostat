@@ -43,6 +43,18 @@
 #define FAN_MID    2
 #define FAN_HIGH   3
 
+// ── Weather icon mapping ──────────────────────────────────────────────────────
+// Weather icon IDs used in Modbus register (icon_id field)
+// Maps to LVGL image assets for weather forecast display
+#define WX_ICON_SUNNY       0   // Clear sky / Sunny day
+#define WX_ICON_PARTLY_CLR  1   // Partly cloudy / Sunny with clouds  
+#define WX_ICON_CLOUDY      2   // Overcast / Cloudy
+#define WX_ICON_RAINY       3   // Rain
+#define WX_ICON_SNOWY       4   // Snow
+#define WX_ICON_STORMY      5   // Thunderstorm
+#define WX_ICON_FOGGY       6   // Fog / Mist
+#define WX_ICON_WINDY       7   // Windy conditions
+
 // ── Weather data per day ─────────────────────────────────────────────────────
 // Register packing (3 regs per day, 40031-40045):
 //   reg+0 = (day_id & 0xFF) | ((icon_id & 0xFF) << 8)
@@ -50,7 +62,7 @@
 //   reg+2 = temp_low_c10  (signed, ×10 e.g. 180 = 18.0 °C)
 typedef struct {
     char     day_name[8];      // "Mon", "Tue" … (from day_id lookup)
-    uint8_t  icon_id;          // 0=sunny, 1=heating, 2=cooling
+    uint8_t  icon_id;          // See WX_ICON_* defines above
     int16_t  temp_high_c10;    // High temperature ×10
     int16_t  temp_low_c10;     // Low  temperature ×10
 } wx_day_t;

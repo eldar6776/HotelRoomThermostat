@@ -62,6 +62,16 @@ FAN_LOW = 1
 FAN_MID = 2
 FAN_HIGH = 3
 
+# Weather Icon IDs (matching firmware WX_ICON_* definitions)
+WX_ICON_SUNNY = 0       # Clear sky / Sunny
+WX_ICON_PARTLY_CLR = 1  # Partly cloudy / Sunny day  
+WX_ICON_CLOUDY = 2      # Overcast / Cloudy
+WX_ICON_RAINY = 3       # Rain
+WX_ICON_SNOWY = 4       # Snow
+WX_ICON_STORMY = 5      # Thunderstorm
+WX_ICON_FOGGY = 6       # Fog / Mist
+WX_ICON_WINDY = 7       # Windy
+
 # ── Helper Functions ──────────────────────────────────────────────────────────
 def print_header(text):
     """Print colored section header"""
@@ -349,20 +359,34 @@ def test_weather_data_write(client, slave_id, verbose=True, cycle=0):
     # Write 5 days of weather data (3 registers per day) with different values per cycle
     weather_data = [
         # Day 0: Monday
-        (1 | ((cycle % 3) << 8), base_temp * 10 + 50, base_temp * 10 - 20),
+        (1 | ((WX_ICON_SUNNY if cycle % 3 == 0 else WX_ICON_PARTLY_CLR) << 8), 
+         base_temp * 10 + 50, base_temp * 10 - 20),
         # Day 1: Tuesday  
-        (2 | (((cycle + 1) % 3) << 8), (base_temp + 2) * 10, (base_temp - 3) * 10),
+        (2 | ((WX_ICON_PARTLY_CLR if (cycle + 1) % 3 == 0 else WX_ICON_CLOUDY) << 8), 
+         (base_temp + 2) * 10, (base_temp - 3) * 10),
         # Day 2: Wednesday
-        (3 | (((cycle + 2) % 3) << 8), (base_temp + 5) * 10, (base_temp + 1) * 10),
+        (3 | ((WX_ICON_SUNNY if (cycle + 2) % 3 == 0 else WX_ICON_PARTLY_CLR) << 8), 
+         (base_temp + 5) * 10, (base_temp + 1) * 10),
         # Day 3: Thursday
-        (4 | ((cycle % 3) << 8), (base_temp + 3) * 10, (base_temp - 1) * 10),
+        (4 | ((WX_ICON_CLOUDY if cycle % 2 == 0 else WX_ICON_SUNNY) << 8), 
+         (base_temp + 3) * 10, (base_temp - 1) * 10),
         # Day 4: Friday
-        (5 | (((cycle + 1) % 3) << 8), (base_temp + 1) * 10, (base_temp - 2) * 10),
+        (5 | ((WX_ICON_PARTLY_CLR if (cycle + 1) % 2 == 0 else WX_ICON_SUNNY) << 8), 
+         (base_temp + 1) * 10, (base_temp - 2) * 10),
     ]
     
     base_addr = 30  # MB_REG_WX_BASE
     day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    icon_names = {0: "Sunny", 1: "Heating", 2: "Cooling"}
+    icon_names = {
+        WX_ICON_SUNNY: "Sunny",
+        WX_ICON_PARTLY_CLR: "Partly Cloudy",
+        WX_ICON_CLOUDY: "Cloudy",
+        WX_ICON_RAINY: "Rainy",
+        WX_ICON_SNOWY: "Snowy",
+        WX_ICON_STORMY: "Stormy",
+        WX_ICON_FOGGY: "Foggy",
+        WX_ICON_WINDY: "Windy"
+    }
     
     # CRITICAL: Write ALL weather data FIRST (registers 30-44)
     for day_idx, (packed, temp_high, temp_low) in enumerate(weather_data):
