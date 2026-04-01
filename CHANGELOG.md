@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Weather Data Display (Critical)**
+  - Fixed test write order: now writes weather data registers BEFORE triggering watchdog (registers were empty before)
+  - Fixed UI refresh: now detects new weather data arrival (was only updating on stale flag change true↔false)
+  - Reduced weather UI refresh period from 5000ms to 500ms for faster response
+  - Added volatile qualifiers to weather_stale and wx_last_update_ms for thread safety
+  - Fixed strncpy missing NULL terminator in day_name parsing
+  - Added explicit day_name clearing when day_id is invalid (≥7)
+  - Weather Valid discrete input (10004) now correctly shows YES after successful data write
+
 ### Changed
 - **Test Infrastructure**
   - Enhanced cycle test mode to perform comprehensive testing of ALL Modbus functions
