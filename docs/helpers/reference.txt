@@ -1,0 +1,7 @@
+https://github.com/NorthernMan54/ESP32-4848S040
+https://github.com/aquaElectronics/esp32-4848s040-st7701
+https://github.com/sand1812/ESP32-4848S040/tree/main
+https://github.com/cnelson-pdx/esphome-livingroom-panel
+https://github.com/vievian-wq/ESP32-4848S040-Panel/tree/main
+https://github.com/alaltitov/Guition-ESP32-S3-4848S040/tree/2026.1.4
+https://michiel.vanderwulp.be/domotica/Modules/SmartDisplay-ESP32-S3-4.0inch/
