@@ -50,8 +50,23 @@ LV_IMG_DECLARE(ui_img_fan_mode_png);    // assets/fan_mode.png
 LV_IMG_DECLARE(ui_img_thermo_dec_png);    // assets/thermo_dec.png
 LV_IMG_DECLARE(ui_img_heating_png);    // assets/heating.png
 LV_IMG_DECLARE(ui_img_cooling_png);    // assets/cooling.png
-LV_IMG_DECLARE(ui_img_sunny_png);    // assets/sunny.png
+LV_IMG_DECLARE(ui_img_partly_cloudy_day_128_png);    // assets/partly_cloudy_day_128.png
+LV_IMG_DECLARE(ui_img_clear_night_png);    // assets/clear_night.png
+LV_IMG_DECLARE(ui_img_cloudy_png);    // assets/cloudy.png
+LV_IMG_DECLARE(ui_img_foggy_png);    // assets/foggy.png
+LV_IMG_DECLARE(ui_img_partly_cloudy_day_png);    // assets/partly_cloudy_day.png
+LV_IMG_DECLARE(ui_img_partly_cloudy_night_png);    // assets/partly_cloudy_night.png
+LV_IMG_DECLARE(ui_img_rainy_128_png);    // assets/rainy_128.png
+LV_IMG_DECLARE(ui_img_partly_cloudy_night_128_png);    // assets/partly_cloudy_night_128.png
+LV_IMG_DECLARE(ui_img_storm_128_png);    // assets/storm_128.png
+LV_IMG_DECLARE(ui_img_sunny_128_png);    // assets/sunny_128.png
+LV_IMG_DECLARE(ui_img_cloudy_128_png);    // assets/cloudy_128.png
+LV_IMG_DECLARE(ui_img_snowy_128_png);    // assets/snowy_128.png
+LV_IMG_DECLARE(ui_img_rainy_png);    // assets/rainy.png
+LV_IMG_DECLARE(ui_img_snowy_png);    // assets/snowy.png
+LV_IMG_DECLARE(ui_img_storm_png);    // assets/storm.png
 LV_IMG_DECLARE(ui_img_sunny_day_png);    // assets/sunny_day.png
+LV_IMG_DECLARE(ui_img_foggy_128_png);    // assets/foggy_128.png
 
 // FONTS
 LV_FONT_DECLARE(ui_font_fontinterlight80);

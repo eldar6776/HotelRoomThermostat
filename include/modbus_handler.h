@@ -8,10 +8,10 @@
 #define MB_REG_HVAC_MODE     1   // 40002 – 0=OFF,1=HEAT,2=COOL
 #define MB_REG_FAN_SPEED     2   // 40003 – 0=AUTO,1=LOW,2=MID,3=HIGH
 #define MB_REG_RELAY_MODE    21  // 40022 – 0=3-speed,1=1-relay
-// Weather block: 40030-40046  (0-based: 29-45)
+// Weather block: 40030-40048  (0-based: 29-47)
 #define MB_REG_WX_WATCHDOG   29  // 40030 – watchdog timestamp flag
 #define MB_REG_WX_BASE       30  // 40031 – day-0 data start
-#define MB_HREG_COUNT        46  // total holding registers
+#define MB_HREG_COUNT        48  // total holding registers (6 days × 3 + 30)
 #define MB_COIL_DND          0   // 00001 – Do Not Disturb
 #define MB_COIL_MUR          1   // 00002 – Make Up Room
 
@@ -70,7 +70,7 @@ typedef struct {
 // Alias used by UI layer (Task 06)
 typedef wx_day_t forecast_data_t;
 
-#define WX_MAX_DAYS   5
+#define WX_MAX_DAYS   6
 #define WX_STALE_MS   (12UL * 3600UL * 1000UL)   // 12 h
 
 // ── Shared modbus register mirror ────────────────────────────────────────────

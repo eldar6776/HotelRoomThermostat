@@ -28,6 +28,16 @@ extern lv_obj_t *ui_LabelFanStatus;
 extern lv_obj_t *ui_LabelCurrentTemp;
 extern lv_obj_t *ui_LabelRoomTemp;
 extern lv_obj_t *ui_LabelWeatherTodayDesc;
+extern lv_obj_t *ui_LabelWeatherTodayTemp;
+extern lv_obj_t *ui_LabelWeatherCity;
+extern lv_obj_t *ui_ImageWeatherTodayIcon;
+extern lv_obj_t *ui_ImageWeatherTodayIcon1;
+extern lv_obj_t *ui_ImageWeatherTodayIcon2;
+extern lv_obj_t *ui_ImageWeatherTodayIcon3;
+extern lv_obj_t *ui_ImageWeatherTodayIcon4;
+extern lv_obj_t *ui_ImageWeatherTodayIcon5;
+extern lv_obj_t *ui_ImageWeatherTodayIcon6;
+extern lv_obj_t *ui_ImageWeatherTodayIcon7;
 extern lv_obj_t *ui_ImageHeatStatus;
 extern lv_obj_t *ui_ImageCoolStatus;
 extern lv_obj_t *ui_PinEntry;
@@ -75,9 +85,14 @@ void settings3_loaded_cb(lv_event_t *e)
 }
 
 // Forward declarations for PNG images (weather forecast icons)
-extern const lv_img_dsc_t ui_img_sunny_png;      // WX_ICON_SUNNY (0)
-extern const lv_img_dsc_t ui_img_sunny_day_png;  // WX_ICON_PARTLY_CLR (1)
-extern const lv_img_dsc_t ui_img_hvac_png;       // Generic fallback icon
+extern const lv_img_dsc_t ui_img_sunny_day_png;         // WX_ICON_SUNNY + WX_ICON_PARTLY_CLR
+extern const lv_img_dsc_t ui_img_cloudy_png;            // WX_ICON_CLOUDY (2)
+extern const lv_img_dsc_t ui_img_rainy_png;             // WX_ICON_RAINY (3)
+extern const lv_img_dsc_t ui_img_snowy_png;             // WX_ICON_SNOWY (4)
+extern const lv_img_dsc_t ui_img_storm_png;             // WX_ICON_STORMY (5)
+extern const lv_img_dsc_t ui_img_foggy_png;             // WX_ICON_FOGGY (6)
+extern const lv_img_dsc_t ui_img_partly_cloudy_day_png; // WX_ICON_WINDY (7)
+extern const lv_img_dsc_t ui_img_hvac_png;              // Generic fallback icon
 
 // ── Clean screen timer ────────────────────────────────────────────────────────
 static lv_timer_t *s_clean_timer = NULL;
@@ -102,21 +117,26 @@ static void clean_timer_cb(lv_timer_t *t)
 static const lv_img_dsc_t *weather_icon_src(uint8_t icon_id)
 {
     // Map weather icon IDs to LVGL image assets
-    // NOTE: Currently limited by available icons in SquareLine project
-    // TODO: Add proper weather icons (cloudy, rainy, snowy, stormy, etc.)
+    // All weather icons now available (converted from PNG to C arrays)
     switch (icon_id) {
         case WX_ICON_SUNNY:       // 0 - Clear sky
-            return &ui_img_sunny_png;
-        case WX_ICON_PARTLY_CLR:  // 1 - Partly cloudy / Sunny day
             return &ui_img_sunny_day_png;
-        case WX_ICON_CLOUDY:      // 2 - Cloudy (fallback to HVAC icon until proper icon added)
-        case WX_ICON_RAINY:       // 3 - Rain (fallback)
-        case WX_ICON_SNOWY:       // 4 - Snow (fallback)
-        case WX_ICON_STORMY:      // 5 - Storm (fallback)
-        case WX_ICON_FOGGY:       // 6 - Fog (fallback)
-        case WX_ICON_WINDY:       // 7 - Wind (fallback)
+        case WX_ICON_PARTLY_CLR:  // 1 - Partly cloudy / Sunny day
+            return &ui_img_partly_cloudy_day_png;
+        case WX_ICON_CLOUDY:      // 2 - Cloudy
+            return &ui_img_cloudy_png;
+        case WX_ICON_RAINY:       // 3 - Rain
+            return &ui_img_rainy_png;
+        case WX_ICON_SNOWY:       // 4 - Snow
+            return &ui_img_snowy_png;
+        case WX_ICON_STORMY:      // 5 - Thunderstorm
+            return &ui_img_storm_png;
+        case WX_ICON_FOGGY:       // 6 - Fog / Mist
+            return &ui_img_foggy_png;
+        case WX_ICON_WINDY:       // 7 - Windy conditions
+            return &ui_img_partly_cloudy_day_png;  // Using partly cloudy as windy placeholder
         default:
-            return &ui_img_hvac_png;  // Generic fallback icon
+            return &ui_img_hvac_png;  // Generic fallback icon for unknown IDs
     }
 }
 
@@ -155,9 +175,51 @@ void update_weather_forecast_ui(void)
 
     lv_obj_clear_flag(ui_TileWeather, LV_OBJ_FLAG_HIDDEN);
 
-    for (uint8_t i = 0; i < WX_MAX_DAYS; i++) {
+    // Update large icon for TODAY (day 0)
+    // SquareLine icon order does NOT match WX_ICON_* IDs, so use switch
+    lv_obj_t *today_icon = NULL;
+    uint8_t today_icon_id = g_mb.wx_days[0].icon_id;
+    switch (today_icon_id) {
+        case WX_ICON_SUNNY:       today_icon = ui_ImageWeatherTodayIcon4; break;
+        case WX_ICON_PARTLY_CLR:  today_icon = ui_ImageWeatherTodayIcon;  break;
+        case WX_ICON_CLOUDY:      today_icon = ui_ImageWeatherTodayIcon5; break;
+        case WX_ICON_RAINY:       today_icon = ui_ImageWeatherTodayIcon1; break;
+        case WX_ICON_SNOWY:       today_icon = ui_ImageWeatherTodayIcon6; break;
+        case WX_ICON_STORMY:      today_icon = ui_ImageWeatherTodayIcon3; break;
+        case WX_ICON_FOGGY:       today_icon = ui_ImageWeatherTodayIcon7; break;
+        case WX_ICON_WINDY:       today_icon = ui_ImageWeatherTodayIcon2; break;
+        default:                  today_icon = ui_ImageWeatherTodayIcon;  break;
+    }
+
+    lv_obj_t *all_today_icons[] = {
+        ui_ImageWeatherTodayIcon, ui_ImageWeatherTodayIcon1,
+        ui_ImageWeatherTodayIcon2, ui_ImageWeatherTodayIcon3,
+        ui_ImageWeatherTodayIcon4, ui_ImageWeatherTodayIcon5,
+        ui_ImageWeatherTodayIcon6, ui_ImageWeatherTodayIcon7,
+    };
+    for (uint8_t i = 0; i < 8; i++) {
+        if (all_today_icons[i] == today_icon)
+            lv_obj_clear_flag(all_today_icons[i], LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(all_today_icons[i], LV_OBJ_FLAG_HIDDEN);
+    }
+
+    // Update 5 forecast cards (days 1-5, mapped to card 0-4)
+    for (uint8_t i = 1; i < WX_MAX_DAYS; i++) {
         if (g_mb.wx_days[i].day_name[0] == '\0') continue;
-        update_forecast_card(i, &g_mb.wx_days[i]);
+        update_forecast_card(i - 1, &g_mb.wx_days[i]);
+    }
+
+    // Update today's temperature label
+    if (g_mb.wx_days[0].day_name[0] != '\0') {
+        char temp_buf[32];
+        snprintf(temp_buf, sizeof(temp_buf), "High: %d°C  Low: %d°C",
+                 g_mb.wx_days[0].temp_high_c10 / 10,
+                 g_mb.wx_days[0].temp_low_c10 / 10);
+        lv_label_set_text(ui_LabelWeatherTodayTemp, temp_buf);
+
+        // Update city label
+        lv_label_set_text(ui_LabelWeatherCity, "Sarajevo");
     }
 }
 

@@ -36,11 +36,25 @@ static void clean_timer_cb(lv_timer_t *t)
 static const lv_img_dsc_t *weather_icon_src(uint8_t icon_id)
 {
     switch (icon_id) {
-        case 1:  return &ui_img_heating_png;
-        case 2:  return &ui_img_cooling_png;
-        case 0:
-        default: return &ui_img_sunny_png;
+        case WX_ICON_SUNNY:       // 0 - Sunny
+        case WX_ICON_PARTLY_CLR:  // 1 - Partly cloudy
+            return &ui_img_sunny_day_png;
+        case WX_ICON_CLOUDY:      // 2 - Cloudy
+            return &ui_img_cloudy_png;
+        case WX_ICON_RAINY:       // 3 - Rain
+            return &ui_img_rainy_png;
+        case WX_ICON_SNOWY:       // 4 - Snow
+            return &ui_img_snowy_png;
+        case WX_ICON_STORMY:      // 5 - Thunderstorm
+            return &ui_img_storm_png;
+        case WX_ICON_FOGGY:       // 6 - Fog
+            return &ui_img_foggy_png;
+        case WX_ICON_WINDY:       // 7 - Windy
+            return &ui_img_partly_cloudy_day_png;
+        default:
+            return &ui_img_sunny_day_png;
     }
+}
 }
 
 // Update a single pre-existing forecast card (Task 06)

@@ -350,33 +350,37 @@ def test_write_coils(client, slave_id, verbose=True):
 def test_weather_data_write(client, slave_id, verbose=True, cycle=0):
     """Test writing weather forecast data with varying temperatures per cycle"""
     if verbose:
-        print_header("TEST: Write Weather Forecast Data")
+        print_header("TEST: Write Weather Forecast Data (6 days: Today + 5 forecast)")
     
     # Generate varying weather data for each cycle
     # Base temperatures + cycle offset to ensure different data every time
     base_temp = 20 + (cycle % 10)  # 20-29°C base
     
-    # Write 5 days of weather data (3 registers per day) with different values per cycle
+    # Write 6 days of weather data (3 registers per day) with different values per cycle
+    # Day 0 = Today (large icon), Days 1-5 = forecast cards
     weather_data = [
-        # Day 0: Monday
-        (1 | ((WX_ICON_SUNNY if cycle % 3 == 0 else WX_ICON_PARTLY_CLR) << 8), 
+        # Day 0: TODAY (large icon) - Partly Cloudy
+        (0 | (WX_ICON_PARTLY_CLR << 8), 
          base_temp * 10 + 50, base_temp * 10 - 20),
-        # Day 1: Tuesday  
-        (2 | ((WX_ICON_PARTLY_CLR if (cycle + 1) % 3 == 0 else WX_ICON_CLOUDY) << 8), 
-         (base_temp + 2) * 10, (base_temp - 3) * 10),
-        # Day 2: Wednesday
-        (3 | ((WX_ICON_SUNNY if (cycle + 2) % 3 == 0 else WX_ICON_PARTLY_CLR) << 8), 
-         (base_temp + 5) * 10, (base_temp + 1) * 10),
-        # Day 3: Thursday
-        (4 | ((WX_ICON_CLOUDY if cycle % 2 == 0 else WX_ICON_SUNNY) << 8), 
+        # Day 1: Monday - Sunny
+        (1 | (WX_ICON_SUNNY << 8), 
          (base_temp + 3) * 10, (base_temp - 1) * 10),
-        # Day 4: Friday
-        (5 | ((WX_ICON_PARTLY_CLR if (cycle + 1) % 2 == 0 else WX_ICON_SUNNY) << 8), 
-         (base_temp + 1) * 10, (base_temp - 2) * 10),
+        # Day 2: Tuesday - Cloudy
+        (2 | (WX_ICON_CLOUDY << 8), 
+         (base_temp + 1) * 10, (base_temp - 3) * 10),
+        # Day 3: Wednesday - Rainy
+        (3 | (WX_ICON_RAINY << 8), 
+         (base_temp - 2) * 10, (base_temp - 5) * 10),
+        # Day 4: Thursday - Snowy
+        (4 | (WX_ICON_SNOWY << 8), 
+         (base_temp - 4) * 10, (base_temp - 8) * 10),
+        # Day 5: Friday - Stormy
+        (5 | (WX_ICON_STORMY << 8), 
+         (base_temp - 1) * 10, (base_temp - 4) * 10),
     ]
     
     base_addr = 30  # MB_REG_WX_BASE
-    day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    day_labels = ["Today", "Mon", "Tue", "Wed", "Thu", "Fri"]
     icon_names = {
         WX_ICON_SUNNY: "Sunny",
         WX_ICON_PARTLY_CLR: "Partly Cloudy",
@@ -388,7 +392,7 @@ def test_weather_data_write(client, slave_id, verbose=True, cycle=0):
         WX_ICON_WINDY: "Windy"
     }
     
-    # CRITICAL: Write ALL weather data FIRST (registers 30-44)
+    # CRITICAL: Write ALL weather data FIRST (registers 30-47)
     for day_idx, (packed, temp_high, temp_low) in enumerate(weather_data):
         addr = base_addr + day_idx * 3
         if not safe_write_register(client, slave_id, addr, packed):
@@ -401,7 +405,8 @@ def test_weather_data_write(client, slave_id, verbose=True, cycle=0):
         day_id = packed & 0xFF
         icon_id = (packed >> 8) & 0xFF
         icon_name = icon_names.get(icon_id, f"Unknown({icon_id})")
-        print_success(f"Day {day_idx}: {day_names[day_id]}, {icon_name}, High {temp_high/10:.1f}°C, Low {temp_low/10:.1f}°C")
+        label = ">>> TODAY <<<" if day_idx == 0 else f"Day {day_idx}"
+        print_success(f"{label} ({day_labels[day_id]}): {icon_name}, High {temp_high/10:.1f}°C, Low {temp_low/10:.1f}°C")
     
     # CRITICAL: Write watchdog trigger LAST (register 29)
     # This triggers firmware callback to parse the data we just wrote above
