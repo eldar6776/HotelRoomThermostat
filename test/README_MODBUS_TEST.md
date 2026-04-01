@@ -52,15 +52,24 @@ python modbus_test.py --quick
 python modbus_test.py --cycles 3
 ```
 **Šta radi:**
-- Pokreće 3 automatska test ciklusa
-- Svaki ciklus: čita registre, piše temperature (20°C, 21°C, 22°C...)
-- Kraći output format (verbose=False)
-- Idealno za reliability testing
+- Pokreće 3 automatska test ciklusa sa POTPUNOM provjerom svih Modbus funkcija
+- **Svaki ciklus testira:**
+  - ✅ SVE holding registre (target temp, HVAC mode, fan speed) - čitanje
+  - ✅ SVE input registre (current temp, relays, uptime, heap, window) - čitanje
+  - ✅ SVE coils (DND, MUR) - čitanje i pisanje ON/OFF
+  - ✅ SVE discrete inputs (window, system ready, HVAC active, weather valid) - čitanje
+  - ✅ Pisanje target temperature sa cikličnim vrijednostima (20.0°C→22.0°C→24.0°C→21.5°C→23.0°C→19.0°C→25.0°C)
+  - ✅ Pisanje HVAC mode sa rotacijom (OFF→HEAT→COOL)
+  - ✅ Pisanje fan speed sa rotacijom (AUTO→LOW→MID→HIGH)
+  - ✅ Weather data upis sa RAZLIČITIM vrijednostima svakog ciklusa (temp 20-29°C, ikone Sunny/Heating/Cooling)
+- **Verbose output:** Detaljni ispis SVIH rezultata (čitanja i pisanja)
+- **Verifikacija:** Provjerava da li pisane vrijednosti (temp, mode, speed) su ispravno postavljene
+- **Idealno za:** Reliability testing, regression testing, stress testing
 
 **Primjeri:**
 ```bash
-python modbus_test.py --cycles 10   # 10 ciklusa
-python modbus_test.py --cycles 100  # Stress test
+python modbus_test.py --cycles 10   # 10 kompletnih ciklusa
+python modbus_test.py --cycles 100  # Stress test sa 100 ciklusa
 ```
 
 ---
