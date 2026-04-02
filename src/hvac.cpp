@@ -32,10 +32,8 @@ static float adc_to_celsius(int raw)
 // relay_id: 0=none, 1=RELAY1, 2=RELAY2, 3=RELAY3
 static void relay_set_target(uint8_t relay_id)
 {
-    // Turn all relays OFF first
-    digitalWrite(PIN_RELAY1, LOW);
-    digitalWrite(PIN_RELAY2, LOW);
-    digitalWrite(PIN_RELAY3, LOW);
+    // Turn all relays OFF first (via I2C expander adapter API)
+    hal_relay_all_off();
 
     if (relay_id == 0) return;   // all off
 
@@ -48,9 +46,9 @@ static void relay_set_target(uint8_t relay_id)
 static void relay_apply_direct(uint8_t relay_id)
 {
     switch (relay_id) {
-        case 1: digitalWrite(PIN_RELAY1, HIGH); break;
-        case 2: digitalWrite(PIN_RELAY2, HIGH); break;
-        case 3: digitalWrite(PIN_RELAY3, HIGH); break;
+        case 1: hal_relay_set(1, true);  break;
+        case 2: hal_relay_set(2, true);  break;
+        case 3: hal_relay_set(3, true);  break;
         default: break;
     }
 }
@@ -58,7 +56,7 @@ static void relay_apply_direct(uint8_t relay_id)
 // ── Pick relay based on mode / fan speed ────────────────────────────────────
 // relay_mode 0 = 3-speed:  relay1=low, relay2=mid, relay3=high, auto=low
 // relay_mode 1 = 1-relay : relay1 = on/off
-static uint8_t pick_relay(void)
+static uint8_t pick_relay(float error)
 {
     bool relay_mode_1relay = (g_mb.hreg[MB_REG_RELAY_MODE] == 1);
 
@@ -67,12 +65,26 @@ static uint8_t pick_relay(void)
     if (relay_mode_1relay) {
         return 1;  // single relay only
     }
+
+    uint8_t effective_speed = s_fan_speed;
+    if (s_fan_speed == FAN_AUTO) {
+        float abs_error = fabsf(error);
+        float step = g_sys_cfg.stage_step_x10 / 10.0f;
+        
+        if (abs_error < step) {
+            effective_speed = FAN_LOW;
+        } else if (abs_error < 2.0f * step) {
+            effective_speed = FAN_MID;
+        } else {
+            effective_speed = FAN_HIGH;
+        }
+    }
+
     // 3-speed fan
-    switch (s_fan_speed) {
+    switch (effective_speed) {
         case FAN_LOW:  return 1;
         case FAN_MID:  return 2;
         case FAN_HIGH: return 3;
-        case FAN_AUTO: // fall through — default low speed
         default:       return 1;
     }
 }
@@ -103,6 +115,17 @@ void hvac_init(void)
 // ── hvac_update ──────────────────────────────────────────────────────────────
 void hvac_update(void)
 {
+    // 0. Sinkroniziraj stanje s Modbus registrima (Single Source of Truth)
+    // Ovo omogućava da promjene setpointa/moda/brzine preko Modbus mastera 
+    // (npr. recepcije) odmah utiču na rad HVAC logike.
+    s_setpoint   = g_mb.hreg[MB_REG_TARGET_TEMP] / 10;
+    s_hvac_mode  = (uint8_t)g_mb.hreg[MB_REG_HVAC_MODE];
+    s_fan_speed  = (uint8_t)g_mb.hreg[MB_REG_FAN_SPEED];
+
+    // Osiguranje (Clamping) - ne dozvoli ekstremne vrijednosti iz vanjskih izvora
+    if (s_setpoint < TEMP_SETPOINT_MIN) s_setpoint = TEMP_SETPOINT_MIN;
+    if (s_setpoint > TEMP_SETPOINT_MAX) s_setpoint = TEMP_SETPOINT_MAX;
+
     // 1. Read NTC with EMA filter
     int raw = analogRead(PIN_NTC);
     float t = adc_to_celsius(raw);
@@ -110,8 +133,14 @@ void hvac_update(void)
         s_room_temp_ema = EMA_ALPHA * t + (1.0f - EMA_ALPHA) * s_room_temp_ema;
     }
 
-    // 2. Window sensor (Active LOW)
-    s_window_open = (digitalRead(PIN_WINDOW_SENSOR) == LOW);
+    // 2. Window sensor (Active LOW — read via I2C expander)
+    bool window_now_open = hal_window_is_open();
+    if (window_now_open != s_window_open) {
+        LOG_INFO("[HVAC] Window state changed: %s → %s",
+                 s_window_open ? "OPEN" : "CLOSED",
+                 window_now_open ? "OPEN" : "CLOSED");
+        s_window_open = window_now_open;
+    }
     if (s_window_open && s_hvac_mode != HVAC_OFF) {
         // Force HVAC off while window open
         LOG_DEBUG("Window is open, forcing HVAC OFF");
@@ -130,29 +159,30 @@ void hvac_update(void)
     }
 
     // 4. Thermostat logic (simple hysteresis from settings)
+    float compensated_room_temp = s_room_temp_ema + (g_sys_cfg.sensor_offset_x10 / 10.0f);
     float hyst = g_sys_cfg.hysteresis_x10 / 10.0f;
-    float error = (float)s_setpoint - s_room_temp_ema;
+    float error = (float)s_setpoint - compensated_room_temp;
 
     uint8_t desired_relay = 0;
     switch (s_hvac_mode) {
         case HVAC_HEAT:
             if (error > (hyst / 2.0f))
-                desired_relay = pick_relay();
+                desired_relay = pick_relay(error);
             else if (error < -(hyst / 2.0f))
                 desired_relay = 0;
             else
                 // hysteresis band — keep current state
-                desired_relay = (digitalRead(PIN_RELAY1) || digitalRead(PIN_RELAY2) || digitalRead(PIN_RELAY3))
-                                ? pick_relay() : 0;
+                desired_relay = (hal_relay_is_on(1) || hal_relay_is_on(2) || hal_relay_is_on(3))
+                                ? pick_relay(error) : 0;
             break;
         case HVAC_COOL:
             if (error < -(hyst / 2.0f))
-                desired_relay = pick_relay();
+                desired_relay = pick_relay(error);
             else if (error > (hyst / 2.0f))
                 desired_relay = 0;
             else
-                desired_relay = (digitalRead(PIN_RELAY1) || digitalRead(PIN_RELAY2) || digitalRead(PIN_RELAY3))
-                                ? pick_relay() : 0;
+                desired_relay = (hal_relay_is_on(1) || hal_relay_is_on(2) || hal_relay_is_on(3))
+                                ? pick_relay(error) : 0;
             break;
         case HVAC_OFF:
         default:
@@ -161,8 +191,15 @@ void hvac_update(void)
     }
 
     // Only change if different from current state (avoids continuous deadband triggering)
-    bool any_on = digitalRead(PIN_RELAY1) || digitalRead(PIN_RELAY2) || digitalRead(PIN_RELAY3);
+    bool any_on = hal_relay_is_on(1) || hal_relay_is_on(2) || hal_relay_is_on(3);
     bool want_on = (desired_relay != 0);
+
+    // Safety: Force hardware sync every 5 seconds even if state hasn't changed
+    static unsigned long s_last_sync_ms = 0;
+    if (millis() - s_last_sync_ms >= 5000) {
+        s_last_sync_ms = millis();
+        hal_relay_sync();
+    }
 
     if (want_on != any_on || (want_on && desired_relay != s_db_target_relay)) {
         LOG_DEBUG("HVAC state change: current_on=%d, desired_relay=%d", any_on, desired_relay);

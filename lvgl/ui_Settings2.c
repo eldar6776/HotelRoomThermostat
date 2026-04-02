@@ -87,6 +87,7 @@ void ui_event_BtnNext2(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         _ui_screen_change(&ui_Settings3, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_Settings3_screen_init);
+        ui_sync_settings_to_widgets();
     }
 }
 
@@ -146,7 +147,7 @@ void ui_Settings2_screen_init(void)
     lv_obj_set_y(ui_SpinSensorOffset, 180);
     lv_obj_set_align(ui_SpinSensorOffset, LV_ALIGN_TOP_RIGHT);
     lv_spinbox_set_digit_format(ui_SpinSensorOffset, 3, 2);
-    lv_spinbox_set_range(ui_SpinSensorOffset, 0, 999);
+    lv_spinbox_set_range(ui_SpinSensorOffset, -999, 999);
     lv_spinbox_set_cursor_pos(ui_SpinSensorOffset, 1 - 1);
     lv_obj_set_style_text_align(ui_SpinSensorOffset, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_SpinSensorOffset, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);

@@ -70,6 +70,7 @@ void ui_event_BtnNext1(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         _ui_screen_change(&ui_Settings2, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_Settings2_screen_init);
+        ui_sync_settings_to_widgets();
     }
 }
 

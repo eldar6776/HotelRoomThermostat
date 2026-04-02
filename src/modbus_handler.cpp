@@ -75,7 +75,8 @@ void modbus_init(uint8_t slave_addr)
     g_mb.wx_last_update_ms = 0;
 
     // Modbus shares Serial (UART0) with debug — same baud rate 115200
-    s_mb.begin(&Serial, PIN_RS485_RTS);
+    // RS485 DE pin: IO41 (dedicated pin, no SPI sharing)
+    s_mb.begin(&Serial, PIN_RS485_DE);
     s_mb.slave(slave_addr);
 
     // Register holding registers block (0-based, MB_HREG_COUNT regs)
@@ -91,10 +92,13 @@ void modbus_init(uint8_t slave_addr)
     s_mb.addCoil(MB_COIL_DND, false, 2);
 
     // Pre-load default values
-    g_mb.hreg[MB_REG_TARGET_TEMP] = 220;  // 22.0 °C
-    g_mb.hreg[MB_REG_HVAC_MODE]   = HVAC_OFF;
-    g_mb.hreg[MB_REG_FAN_SPEED]   = FAN_AUTO;
-    g_mb.hreg[MB_REG_RELAY_MODE]  = 0;    // 3-speed default
+    // Load values from NVS settings where available, otherwise use defaults.
+    // This ensures that settings persist after a restart.
+    g_mb.hreg[MB_REG_TARGET_TEMP] = 220; // Default setpoint 22.0°C, this is a runtime value
+    g_mb.hreg[MB_REG_HVAC_MODE]   = g_sys_cfg.hvac_mode; // ✅ LOAD FROM NVS
+    g_mb.hreg[MB_REG_FAN_SPEED]   = FAN_AUTO; // Default fan speed
+
+    g_mb.hreg[MB_REG_RELAY_MODE]  = g_sys_cfg.ctrl_type; // ✅ LOAD FROM NVS
 
     for (int i = 0; i < MB_HREG_COUNT; i++) {
         s_mb.Hreg(i, g_mb.hreg[i]);
@@ -136,6 +140,12 @@ void modbus_set_hvac_mode(uint8_t mode)
     s_mb.Hreg(MB_REG_HVAC_MODE, mode);
 }
 
+void modbus_set_relay_mode(uint8_t mode)
+{
+    g_mb.hreg[MB_REG_RELAY_MODE] = mode;
+    s_mb.Hreg(MB_REG_RELAY_MODE, mode);
+}
+
 void modbus_set_fan_speed(uint8_t speed)
 {
     LOG_INFO("[MB] modbus_set_fan_speed(%u) called", speed);
@@ -170,11 +180,11 @@ void modbus_update_inputs(void)
     g_mb.ireg[MB_IREG_TARGET_TEMP] = g_mb.hreg[MB_REG_TARGET_TEMP];
     s_mb.Ireg(MB_IREG_TARGET_TEMP, g_mb.ireg[MB_IREG_TARGET_TEMP]);
 
-    // Input Register 2: Relay status (bit field)
+    // Input Register 2: Relay status (bit field) — read via I2C expander adapter
     uint16_t relay_bits = 0;
-    if (digitalRead(PIN_RELAY1)) relay_bits |= (1 << 0);
-    if (digitalRead(PIN_RELAY2)) relay_bits |= (1 << 1);
-    if (digitalRead(PIN_RELAY3)) relay_bits |= (1 << 2);
+    if (hal_relay_is_on(1)) relay_bits |= (1 << 0);
+    if (hal_relay_is_on(2)) relay_bits |= (1 << 1);
+    if (hal_relay_is_on(3)) relay_bits |= (1 << 2);
     g_mb.ireg[MB_IREG_RELAY_STATUS] = relay_bits;
     s_mb.Ireg(MB_IREG_RELAY_STATUS, relay_bits);
 

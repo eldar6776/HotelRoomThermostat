@@ -1,0 +1,90 @@
+KOMPLETNA PIN MAPA - Hotel Room Thermostat
+🎯 Pinovi koje si pitao (IO1, IO2, IO40, IO41, IO42, IO47, IO48)
+Pin	Definisan u hal.h?	Korištenje	Lokacije u kodu
+IO1	✅ PIN_NTC	NTC 100k termistor (ADC1_CH0)	hvac.cpp:85,88,107 - analogSetPinAttenuation(), analogRead()
+IO2	✅ PIN_RELAY2	Relay 2 (Brzina ventilatora 2)	hal.cpp:88 - pinMode, hvac.cpp:37,52,145,154,164 - digitalWrite/digitalRead
+IO40	✅ PIN_RELAY1	Relay 1 (Heating/Cooling)	hal.cpp:87 - pinMode, hvac.cpp:36,51,145,154,164 - digitalWrite/digitalRead, modbus_handler.cpp:175 - digitalRead
+IO41	✅ PIN_WINDOW_SENSOR	Senzor prozora (Active LOW)	hal.cpp:89 - pinMode INPUT_PULLUP, hvac.cpp:114 - digitalRead
+IO42	❌ NIJE definisan	NE KORIŠTI SE NIGDJE	Samo u docs/helpers/4.0 inches IO pin distribution.txt kao referenca (TF D3)
+IO47	❌ NIJE definisan	ST7701 SPI MOSI (init bus)	hal.cpp:15 - inline konstanta 47 u Arduino_ESP32SPI(..., 47 /* MOSI */)
+IO48	✅ PIN_RS485_RTS	RS485 TX Enable / ST7701 SPI SCK	hal.cpp:15 - SPI SCK, hal.cpp:106 - pinMode, modbus_handler.cpp:78 - s_mb.begin(&Serial, PIN_RS485_RTS)
+⚠️ VAŽNA NAPOMENA - Pinovi koje koristi sistem a NISU u hal.h
+Display RGB Parallel Interface (Arduino_GFX driver)
+Ovi pinovi su hardkodirani u hal.cpp:17-23 i koriste se za 480x480 RGB displej:
+static Arduino_ESP32RGBPanel *s_rgb_panel = new Arduino_ESP32RGBPanel(
+    18 /* DE  */, 17 /* VSYNC */, 16 /* HSYNC */, 21 /* PCLK */,
+    11 /* R0 */, 12 /* R1 */, 13 /* R2 */, 14 /* R3 */,  0 /* R4 */,
+     8 /* G0 */, 20 /* G1 */,  3 /* G2 */, 46 /* G3 */,  9 /* G4 */, 10 /* G5 */,
+     4 /* B0 */,  5 /* B1 */,  6 /* B2 */,  7 /* B3 */, 15 /* B4 */,
+    ...);
+Pin	Funkcija	Napomena
+IO0	R4 (Red bit 4)	RGB display
+IO3	G2 (Green bit 2)	RGB display
+IO4	B0 (Blue bit 0)	RGB display
+IO5	B1 (Blue bit 1)	RGB display
+IO6	B2 (Blue bit 2)	RGB display
+IO7	B3 (Blue bit 3)	RGB display
+IO8	G0 (Green bit 0)	RGB display
+IO9	G4 (Green bit 4)	RGB display
+IO10	G5 (Green bit 5)	RGB display
+IO11	R0 (Red bit 0)	RGB display
+IO12	R1 (Red bit 1)	RGB display
+IO13	R2 (Red bit 2)	RGB display
+IO14	R3 (Red bit 3)	RGB display
+IO15	B4 (Blue bit 4)	RGB display
+IO16	HSYNC	RGB display sync
+IO17	VSYNC	RGB display sync
+IO18	DE (Data Enable)	RGB display
+IO20	G1 (Green bit 1)	RGB display
+IO21	PCLK (Pixel Clock)	RGB display
+IO46	G3 (Green bit 3)	RGB display
+Ostali pinovi u upotrebi
+Pin	Makro	Funkcija	Lokacija
+IO19	PIN_TOUCH_SDA	GT911 Touch I2C SDA	hal.h:12, hal.cpp:31, Touch_GT911.cpp:28
+IO38	PIN_LCD_BL	LCD Backlight PWM	hal.h:11, hal.cpp:69,93
+IO39	PIN_RELAY3	Relay 3 + ST7701 SPI CS	hal.h:7, hal.cpp:15,105, hvac.cpp:38,53,145,154,164
+IO45	PIN_TOUCH_SCL	GT911 Touch I2C SCL	hal.h:13, hal.cpp:31
+Sistemski pinovi (ESP32-S3 framework)
+Pin	Funkcija	Napomena
+IO43	UART0 TX (Serial)	Definisan u platformio.ini:55 via -DARDUINO_USB_CDC_ON_BOOT=0
+IO44	UART0 RX (Serial)	Definisan u platformio.ini:55 via -DARDUINO_USB_CDC_ON_BOOT=0
+📊 POTPUNA PIN MAPA (Svi pinovi)
+┌─────────────────────────────────────────────────────────────────┐
+│                    ESP32-S3 PIN MAP                             │
+├──────┬──────────────────────────────┬───────────────────────────┤
+│ Pin  │ Funkcija                     │ Definisan u hal.h?        │
+├──────┼──────────────────────────────┼───────────────────────────┤
+│ IO0  │ RGB Display R4               │ ❌ NE                     │
+│ IO1  │ NTC 100k Termistor (ADC)     │ ✅ DA (PIN_NTC)           │
+│ IO2  │ Relay 2 (Fan Speed 2)        │ ✅ DA (PIN_RELAY2)        │
+│ IO3  │ RGB Display G2               │ ❌ NE                     │
+│ IO4  │ RGB Display B0               │ ❌ NE                     │
+│ IO5  │ RGB Display B1               │ ❌ NE                     │
+│ IO6  │ RGB Display B2               │ ❌ NE                     │
+│ IO7  │ RGB Display B3               │ ❌ NE                     │
+│ IO8  │ RGB Display G0               │ ❌ NE                     │
+│ IO9  │ RGB Display G4               │ ❌ NE                     │
+│ IO10 │ RGB Display G5               │ ❌ NE                     │
+│ IO11 │ RGB Display R0               │ ❌ NE                     │
+│ IO12 │ RGB Display R1               │ ❌ NE                     │
+│ IO13 │ RGB Display R2               │ ❌ NE                     │
+│ IO14 │ RGB Display R3               │ ❌ NE                     │
+│ IO15 │ RGB Display B4               │ ❌ NE                     │
+│ IO16 │ RGB Display HSYNC            │ ❌ NE                     │
+│ IO17 │ RGB Display VSYNC            │ ❌ NE                     │
+│ IO18 │ RGB Display DE               │ ❌ NE                     │
+│ IO19 │ Touch I2C SDA                │ ✅ DA (PIN_TOUCH_SDA)     │
+│ IO20 │ RGB Display G1               │ ❌ NE                     │
+│ IO21 │ RGB Display PCLK             │ ❌ NE                     │
+│ IO38 │ LCD Backlight PWM            │ ✅ DA (PIN_LCD_BL)        │
+│ IO39 │ Relay 3 + ST7701 SPI CS      │ ✅ DA (PIN_RELAY3)        │
+│ IO40 │ Relay 1 (Heat/Cool)          │ ✅ DA (PIN_RELAY1)        │
+│ IO41 │ Window Sensor (Active LOW)   │ ✅ DA (PIN_WINDOW_SENSOR) │
+│ IO42 │ ❌ NEKORIŠTEN                │ ❌ NE                     │
+│ IO43 │ UART0 TX (Serial Debug)      │ ❌ NE (platformio.ini)    │
+│ IO44 │ UART0 RX (Serial Debug)      │ ❌ NE (platformio.ini)    │
+│ IO45 │ Touch I2C SCL                │ ✅ DA (PIN_TOUCH_SCL)     │
+│ IO46 │ RGB Display G3               │ ❌ NE                     │
+│ IO47 │ ST7701 SPI MOSI (init)       │ ❌ NE (hardkodiran)       │
+│ IO48 │ RS485 RTS + ST7701 SPI SCK   │ ✅ DA (PIN_RS485_RTS)     │
+└──────┴──────────────────────────────┴───────────────────────────┘

@@ -86,7 +86,6 @@ extern lv_obj_t * ui_ImageAsset2;
 extern lv_obj_t * ui_ImageAsset3;
 extern lv_obj_t * ui_ImageAsset4;
 extern lv_obj_t * ui_ImageWeatherTodayIcon7;
-extern lv_obj_t * ui_LabelWeatherTodayDesc;
 extern lv_obj_t * ui_TileClean;
 extern void ui_event_BtnCleanStart(lv_event_t * e);
 extern lv_obj_t * ui_BtnCleanStart;

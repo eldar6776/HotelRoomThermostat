@@ -70,7 +70,6 @@ lv_obj_t * ui_ImageAsset2 = NULL;
 lv_obj_t * ui_ImageAsset3 = NULL;
 lv_obj_t * ui_ImageAsset4 = NULL;
 lv_obj_t * ui_ImageWeatherTodayIcon7 = NULL;
-lv_obj_t * ui_LabelWeatherTodayDesc = NULL;
 lv_obj_t * ui_TileClean = NULL;
 lv_obj_t * ui_BtnCleanStart = NULL;
 lv_obj_t * ui_LabelCleanText = NULL;
@@ -896,15 +895,6 @@ void ui_Main_screen_init(void)
     lv_obj_add_flag(ui_ImageWeatherTodayIcon7, LV_OBJ_FLAG_HIDDEN | LV_OBJ_FLAG_ADV_HITTEST);     /// Flags
     lv_obj_clear_flag(ui_ImageWeatherTodayIcon7, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
-    ui_LabelWeatherTodayDesc = lv_label_create(ui_TileWeather);
-    lv_obj_set_width(ui_LabelWeatherTodayDesc, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_LabelWeatherTodayDesc, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_LabelWeatherTodayDesc, 0);
-    lv_obj_set_y(ui_LabelWeatherTodayDesc, 80);
-    lv_obj_set_align(ui_LabelWeatherTodayDesc, LV_ALIGN_TOP_MID);
-    lv_label_set_text(ui_LabelWeatherTodayDesc, "Clear");
-    lv_obj_set_style_text_font(ui_LabelWeatherTodayDesc, &lv_font_montserrat_24, LV_PART_MAIN | LV_STATE_DEFAULT);
-
     ui_TileClean = lv_obj_create(ui_SwipeContainer);
     lv_obj_set_width(ui_TileClean, lv_pct(100));
     lv_obj_set_height(ui_TileClean, lv_pct(100));
@@ -1030,7 +1020,6 @@ void ui_Main_screen_destroy(void)
     ui_ImageAsset3 = NULL;
     ui_ImageAsset4 = NULL;
     ui_ImageWeatherTodayIcon7 = NULL;
-    ui_LabelWeatherTodayDesc = NULL;
     ui_TileClean = NULL;
     ui_BtnCleanStart = NULL;
     ui_LabelCleanText = NULL;

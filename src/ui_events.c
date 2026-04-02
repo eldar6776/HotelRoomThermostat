@@ -342,6 +342,60 @@ void action_clean_start(lv_event_t *e)
     s_clean_timer = lv_timer_create(clean_timer_cb, 1000, NULL);
 }
 
+// ── Settings UI Synchronization ──────────────────────────────────────────────
+
+// Helper to find index in dropdown by value
+static uint16_t get_dropdown_index_by_value(lv_obj_t *obj, int value, const int *table, size_t size)
+{
+    for (size_t i = 0; i < size; i++) {
+        if (table[i] == value) return (uint16_t)i;
+    }
+    return 0;
+}
+
+void ui_sync_settings_to_widgets(void)
+{
+    LOG_C_INFO("[UI] Syncing widgets to RAM config...");
+
+    // Screen 1
+    if (ui_DropMinTemp) lv_dropdown_set_selected(ui_DropMinTemp, (uint16_t)(g_sys_cfg.temp_min - 15));
+    if (ui_DropMaxTemp) lv_dropdown_set_selected(ui_DropMaxTemp, (uint16_t)(g_sys_cfg.temp_max - 25));
+    if (ui_DropMode)    lv_dropdown_set_selected(ui_DropMode,    g_sys_cfg.hvac_mode);
+    
+    // Control Type: Index 0="1-Relay" (val 1), Index 1="3-Speed Fan" (val 0)
+    if (ui_DropCtrlType) {
+        lv_dropdown_set_selected(ui_DropCtrlType, (g_sys_cfg.ctrl_type == 0) ? 1 : 0);
+    }
+
+    // Screen 2
+    static const int hyst_table[] = {2, 5, 10, 12, 15, 20};
+    if (ui_DropHysteresis) {
+        lv_dropdown_set_selected(ui_DropHysteresis, get_dropdown_index_by_value(ui_DropHysteresis, g_sys_cfg.hysteresis_x10, hyst_table, 6));
+    }
+
+    static const int stage_table[] = {5, 10, 15, 20, 25};
+    if (ui_DropStageStep) {
+        lv_dropdown_set_selected(ui_DropStageStep, get_dropdown_index_by_value(ui_DropStageStep, g_sys_cfg.stage_step_x10, stage_table, 5));
+    }
+
+    if (ui_SpinSensorOffset) lv_spinbox_set_value(ui_SpinSensorOffset, g_sys_cfg.sensor_offset_x10);
+
+    // Screen 3
+    if (ui_SliderBrightHigh) lv_slider_set_value(ui_SliderBrightHigh, g_sys_cfg.bright_high * 100 / 1023, LV_ANIM_OFF);
+    if (ui_SliderBrightLow)  lv_slider_set_value(ui_SliderBrightLow,  g_sys_cfg.bright_low  * 100 / 1023, LV_ANIM_OFF);
+    
+    static const uint8_t timeout_table[] = {15, 30, 60, 120};
+    if (ui_DropTimeout) {
+        for(uint16_t i=0; i<4; i++) {
+            if(timeout_table[i] == g_sys_cfg.timeout_s) {
+                lv_dropdown_set_selected(ui_DropTimeout, i);
+                break;
+            }
+        }
+    }
+    if (ui_SpinModbusAddr) lv_spinbox_set_value(ui_SpinModbusAddr, g_sys_cfg.modbus_addr);
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 //  PIN Entry
 // ═════════════════════════════════════════════════════════════════════════════
@@ -354,6 +408,7 @@ void action_validate_pin(lv_event_t *e)
         inactivity_set_on_settings(true);
         _ui_screen_change(&ui_Settings1, LV_SCR_LOAD_ANIM_FADE_ON,
                           500, 0, &ui_Settings1_screen_init);
+        ui_sync_settings_to_widgets(); // Sync immediately after load
     } else {
         _ui_screen_change(&ui_Main, LV_SCR_LOAD_ANIM_FADE_ON,
                           500, 0, &ui_Main_screen_init);
@@ -370,7 +425,7 @@ void action_min_temp_changed(lv_event_t *e)
     (void)e;
     inactivity_reset();
     uint16_t sel = lv_dropdown_get_selected(ui_DropMinTemp);
-    g_sys_cfg.temp_min = (int16_t)(10 + sel);
+    g_sys_cfg.temp_min = (int16_t)(15 + sel); // Corrected base
     g_dirty_flags |= FLAG_TEMP_MIN;
 }
 
@@ -379,7 +434,7 @@ void action_max_temp_changed(lv_event_t *e)
     (void)e;
     inactivity_reset();
     uint16_t sel = lv_dropdown_get_selected(ui_DropMaxTemp);
-    g_sys_cfg.temp_max = (int16_t)(20 + sel);
+    g_sys_cfg.temp_max = (int16_t)(25 + sel); // Corrected base
     g_dirty_flags |= FLAG_TEMP_MAX;
 }
 
@@ -398,8 +453,11 @@ void action_ctrl_type_changed(lv_event_t *e)
     (void)e;
     inactivity_reset();
     uint16_t sel = lv_dropdown_get_selected(ui_DropCtrlType);
-    g_sys_cfg.ctrl_type = (uint8_t)sel;
+    // Index 0="1-Relay" → Modbus 1, Index 1="3-Speed Fan" → Modbus 0
+    uint8_t ctrl_val = (sel == 0) ? 1 : 0;
+    g_sys_cfg.ctrl_type = ctrl_val;
     g_dirty_flags |= FLAG_CTRL_TYPE;
+    modbus_set_relay_mode(ctrl_val);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -410,18 +468,24 @@ void action_hysteresis_changed(lv_event_t *e)
 {
     (void)e;
     inactivity_reset();
+    static const int hyst_table[] = {2, 5, 10, 12, 15, 20};
     uint16_t sel = lv_dropdown_get_selected(ui_DropHysteresis);
-    g_sys_cfg.hysteresis_x10 = (int16_t)((sel + 1) * 5);
-    g_dirty_flags |= FLAG_HYSTERESIS;
+    if (sel < 6) {
+        g_sys_cfg.hysteresis_x10 = (int16_t)hyst_table[sel];
+        g_dirty_flags |= FLAG_HYSTERESIS;
+    }
 }
 
 void action_stage_step_changed(lv_event_t *e)
 {
     (void)e;
     inactivity_reset();
+    static const int stage_table[] = {5, 10, 15, 20, 25};
     uint16_t sel = lv_dropdown_get_selected(ui_DropStageStep);
-    g_sys_cfg.stage_step_x10 = (int16_t)((sel + 1) * 5);
-    g_dirty_flags |= FLAG_STAGE_STEP;
+    if (sel < 5) {
+        g_sys_cfg.stage_step_x10 = (int16_t)stage_table[sel];
+        g_dirty_flags |= FLAG_STAGE_STEP;
+    }
 }
 
 void action_offset_changed(lv_event_t *e)

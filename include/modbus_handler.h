@@ -99,6 +99,7 @@ void modbus_update_inputs(void);      // update input registers & discrete input
 // Helpers to write a holding register AND keep slave mirror in sync
 void modbus_set_target_temp(uint16_t val_x10);
 void modbus_set_hvac_mode(uint8_t mode);
+void modbus_set_relay_mode(uint8_t mode);
 void modbus_set_fan_speed(uint8_t speed);
 void modbus_set_dnd_coil(bool state);
 void modbus_set_mur_coil(bool state);

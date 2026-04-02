@@ -65,10 +65,10 @@ static void update_temp_labels(void)
 
     // Window open warning
     if (hvac_is_window_open()) {
-        lv_label_set_text(ui_LabelWeatherTodayDesc, "WINDOW OPEN");
-        lv_obj_clear_flag(ui_LabelWeatherTodayDesc, LV_OBJ_FLAG_HIDDEN);
+//        lv_label_set_text(ui_LabelWeatherTodayDesc, "WINDOW OPEN");
+//        lv_obj_clear_flag(ui_LabelWeatherTodayDesc, LV_OBJ_FLAG_HIDDEN);
     } else {
-        lv_obj_add_flag(ui_LabelWeatherTodayDesc, LV_OBJ_FLAG_HIDDEN);
+//        lv_obj_add_flag(ui_LabelWeatherTodayDesc, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -116,7 +116,6 @@ void setup(void)
     // 3. Apply stored backlight level
     hal_backlight_set(g_sys_cfg.bright_high);
     LOG_INFO("[MAIN] Backlight set to %u", g_sys_cfg.bright_high);
-    delay(100); // Let serial flush
 
     // 4. Start LVGL UI (SquareLine generated)
     LOG_INFO("[MAIN] Starting UI init...");
@@ -152,8 +151,6 @@ void setup(void)
         default:       lv_label_set_text(ui_LabelFanStatus, "Auto"); break;
     }
     
-    update_outside_temp_label(); // Set initial outside temp
-
     // 8. Hide weather tile initially (watchdog controls visibility)
     lv_obj_add_flag(ui_TileWeather, LV_OBJ_FLAG_HIDDEN);
 

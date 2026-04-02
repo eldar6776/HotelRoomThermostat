@@ -32,6 +32,7 @@ void action_bright_low_changed(lv_event_t * e);
 void action_timeout_changed(lv_event_t * e);
 void action_modbus_changed(lv_event_t * e);
 void action_start_wifi_manager(lv_event_t * e);
+void ui_sync_settings_to_widgets(void);
 
 #ifdef __cplusplus
 } /*extern "C"*/

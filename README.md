@@ -27,24 +27,29 @@ Advanced hotel room thermostat system built on ESP32-S3 with 4.0" capacitive tou
 ### Development Board
 - **MCU**: ESP32-S3-WROOM-1-N8 (240MHz dual-core, 8MB Flash, 2MB PSRAM)
 - **Display**: 4.0" ST7701 RGB LCD (480x480 resolution)
-- **Touch**: GT911 I2C capacitive touch controller
+- **Touch**: GT911 I2C capacitive touch controller (I2C0)
+- **I2C Expander**: PCF8574AN or PCA9554ADH (I2C1) for Relays and Window Sensor
 - **Board**: ESP32-4848S040 (Waveshare compatible)
 
 ### GPIO Pin Assignments
 
 | Pin | Function | Description |
 |-----|----------|-------------|
-| IO40 | Relay 1 | Heating/Cooling or Speed 1 |
-| IO2 | Relay 2 | Fan Speed 2 |
-| IO39 | Relay 3 | Fan Speed 3 |
 | IO1 | ADC Input | NTC Thermistor 100kΩ (B3950) |
-| IO41 | Digital Input | Window Sensor (Active Low) |
-| IO48 | RS485 RTS | THVD1500 Transmit Enable |
+| IO41 | RS485 DE | THVD1500 Transmit Enable |
 | IO43 | UART0 TX | Serial Debug + Modbus (shared) |
 | IO44 | UART0 RX | Serial Debug + Modbus (shared) |
 | IO38 | PWM Output | LCD Backlight Control (0-100%) |
-| IO19 | I2C SDA | GT911 Touch Controller |
-| IO20 | I2C SCL | GT911 Touch Controller |
+| IO19 | I2C0 SDA | GT911 Touch Controller |
+| IO45 | I2C0 SCL | GT911 Touch Controller |
+| IO2 | I2C1 SDA | GPIO Expander (Relays, Window Sensor) |
+| IO40 | I2C1 SCL | GPIO Expander (Relays, Window Sensor) |
+
+**I2C Expander Pins (PCF8574AN / PCA9554ADH):**
+- **P0**: Relay 1 (Heating/Cooling / Fan Speed 1)
+- **P1**: Relay 2 (Fan Speed 2)
+- **P2**: Relay 3 (Fan Speed 3)
+- **P6**: Window Sensor (Active Low)
 
 **⚠️ Critical Note**: UART0 (IO43/IO44) is **shared** between Serial debug output and Modbus RTU communication. Both run at **115200 baud** to prevent interference.
 
