@@ -24,7 +24,6 @@ The firmware targets ESP32-S3 (4848S040 style board) with:
 
 Main firmware entry and docs:
 - `fw/src/main.cpp`
-- `fw/README.md`
 - `fw/docs/FSD.md`
 - `fw/docs/DIAGRAMS.md`
 
