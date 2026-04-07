@@ -1,0 +1,19 @@
+Added Component: Designator=J1(CONN_1985292_PXC)
+Add component (AddParameter): Name = "Copyright"; Value = "Copyright (C) 2026 Ultra Librarian. All rights reserved."; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Name"; Value = "Phoenix Contact"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Part_Number"; Value = "1985292"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "RefDes"; Value = "RefDes"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Type"; Value = "Type"; VariantName = "[No Variations]"
+Added Pin To Net: NetName=NetD1_1 Pin=J1-1
+Added Pin To Net: NetName=GND Pin=J1-2
+Added Pin To Net: NetName=RS485_A/OW Pin=J1-3
+Added Pin To Net: NetName=RS485_B Pin=J1-4
+Added Pin To Net: NetName=DIN1 Pin=J1-5
+Added Pin To Net: NetName=DIN2 Pin=J1-6
+Added Pin To Net: NetName=DOUT1 Pin=J1-7
+Added Pin To Net: NetName=DOUT2 Pin=J1-8
+Added Pin To Net: NetName=DOUT3 Pin=J1-9
+Added Pin To Net: NetName=DOUT4 Pin=J1-10
+Added Pin To Net: NetName=DOUT5 Pin=J1-11
+Added Pin To Net: NetName=DOUT6 Pin=J1-12
+Added Member To Class: ClassName=WallBaseBoard Member=Component J1 1985292

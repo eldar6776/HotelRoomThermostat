@@ -1,0 +1,119 @@
+FAZA 1: Rastavljanje stare arhitekture (Brisanje)
+Prije kreiranja novih ekrana, moramo očistiti projekat od komponenti koje guše ESP32.
+
+Brisanje Vremenske prognoze:
+
+U panelu Hierarchy, pronađi TileWeather i obriši ga (Delete). Ovo će automatski obrisati sve unutar njega (ContainerForecast, CardDay1-5, ikonice i labele).
+
+Raspakivanje Swipe Kontejnera:
+
+Trenutno su ti pločice unutar SwipeContainer-a na glavnom ekranu (Main).
+
+Ne briši još SwipeContainer! Prvo ćemo izvući elemente iz njega u Fazi 2, pa ćemo ga na kraju obrisati.
+
+FAZA 2: Arhitektura Novih Ekrana
+Umjesto jednog ekrana sa pločicama, sada ćeš imati 3 potpuno nezavisna glavna ekrana. Kreiraj dva nova ekrana u SquareLine Studiju: Thermostat i Clean. (Ekran Main već postoji).
+
+EKRAN 1: Main (Glavni ekran)
+Postupak: Izvuci sadržaj iz starog TileMain i stavi ga direktno na Main ekran.
+
+Izmjene na interfejsu: Nema vizuelnih izmjena.
+
+Izmjena Događaja (Events):
+
+Objekat: ButtonGoToThermostat (Dugme "THERMO")
+
+Stari Event: Scroll to View (TileThermostat) -> OBRISATI
+
+Novi Event: * Trigger: CLICKED
+
+Action: Change Screen
+
+Target: Thermostat (Animacija po želji, npr. FADE_ON brzine 300ms).
+
+EKRAN 2: Thermostat (Ekran Termostata)
+Postupak: Izvuci sadržaj iz starog TileThermostat i stavi ga direktno na novi ekran Thermostat.
+
+Izmjene na interfejsu i kontrolama:
+
+Aktivacija Arc kontrole:
+
+Objekat ArcTemp sada postaje glavna kontrola.
+
+U postavkama za ArcTemp pobrini se da opcija Clickable (u Flags) bude uključena.
+
+Novi Event na ArcTemp: Trigger: VALUE_CHANGED -> Action: Call Function -> Name: action_arc_temp_changed (Ovu ćemo funkciju dodati u C kod da mijenja temperaturu klizanjem prsta).
+
+Repozicioniranje dugmeta Minus (Sada: Prethodni Ekran):
+
+Objekat: BtnTempDec -> Preimenuj ga u SquareLine-u u BtnPrevThermostat.
+
+Promijeni tekst/ikonu unutar njega da asocira na strelicu ulijevo (ili tekst "BACK").
+
+Event: Trigger: CLICKED -> Action: Change Screen -> Target: Main.
+
+Repozicioniranje dugmeta Plus (Sada: Sljedeći Ekran):
+
+Objekat: BtnTempInc -> Preimenuj ga u SquareLine-u u BtnNextThermostat.
+
+Promijeni tekst/ikonu unutar njega da asocira na strelicu udesno (ili tekst "NEXT").
+
+Event: Trigger: CLICKED -> Action: Change Screen -> Target: Clean.
+
+Srednje dugme (Ventilator):
+
+Objekat: BtnFan ostaje tačno na sredini, između ova dva nova navigaciona dugmeta. Event ostaje isti.
+
+EKRAN 3: Clean (Ekran za Mod Čišćenja)
+Postupak: Izvuci sadržaj iz starog TileClean i stavi ga direktno na novi ekran Clean. Nakon ovoga, stari SwipeContainer na Main ekranu je prazan i možeš ga obrisati.
+
+Izmjene na interfejsu i kontrolama:
+
+Srednje dugme (Start Clean):
+
+Objekat: BtnCleanStart.
+
+Pomjeri ga i poravnaj ga na dno ekrana, tačno na sredinu (Align: BOTTOM_MID), tako da vizuelno odgovara poziciji dugmeta za ventilator na prethodnom ekranu.
+
+Dodavanje dugmeta Prethodni Ekran:
+
+Kopiraj dugme BtnPrevThermostat sa prethodnog ekrana, zalijepi ga ovdje i nazovi ga BtnPrevClean.
+
+Pozicioniraj ga lijevo od srednjeg dugmeta.
+
+Event: Trigger: CLICKED -> Action: Change Screen -> Target: Thermostat.
+
+Dodavanje dugmeta Sljedeći Ekran:
+
+Kopiraj dugme BtnNextThermostat, zalijepi ga ovdje i nazovi ga BtnNextClean.
+
+Pozicioniraj ga desno od srednjeg dugmeta.
+
+Event: Trigger: CLICKED -> Action: Change Screen -> Target: Main.
+
+FAZA 3: Šema Kružne Navigacije (Verifikacija)
+Ovim postavkama si dobio savršenu "Endless Loop" navigaciju sa 3 fiksna dugmeta na dnu svakog ekrana (Lijevo, Sredina, Desno).
+
+Main -> Samo jedno dugme vodi naprijed -> Thermostat
+
+Thermostat -> Lijevo dugme vodi nazad na Main, Desno vodi na Clean
+
+Clean -> Lijevo dugme vodi nazad na Thermostat, Desno vodi ukrug na Main.
+
+FAZA 4: Šta ćemo morati izmijeniti u C Kodu (ui_events.c)
+Kada završiš vizuelni dio u SquareLine Studiju i uradiš Export, funkcije action_temp_inc i action_temp_dec nam više neće trebati. Umjesto njih, napisaćemo jednu jednostavnu funkciju za Arc:
+
+C
+// Nova funkcija koju ćemo dodati u ui_events.c za Arc
+void action_arc_temp_changed(lv_event_t *e)
+{
+    (void)e;
+    // Čitamo direktno vrijednost na koju je korisnik prevukao Arc
+    int val = lv_arc_get_value(ui_ArcTemp);
+    
+    // Ažuriramo labelu na sredini Arca
+    lv_label_set_text_fmt(ui_LabelTargetTemp, "%d°", val);
+    
+    // Šaljemo komandu termostatu
+    hvac_set_setpoint(val);
+}
