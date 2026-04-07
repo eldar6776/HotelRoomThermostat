@@ -1,0 +1,20 @@
+# Repository-wide ignores for generated hardware artifacts (Altium)
+
+# Altium local history snapshots
+hw/**/History/
+
+# Altium generated logs and fabrication outputs
+hw/**/Project Logs for */
+hw/**/Project Outputs for */
+
+# Altium preview/cache files
+hw/**/__Previews/
+hw/**/*.SchDocPreview
+
+# Ad-hoc packaged exports
+hw/**/*Order.zip
+hw/**/*.Cam
+
+# OS noise
+.DS_Store
+Thumbs.db
