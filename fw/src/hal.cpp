@@ -113,6 +113,7 @@ static uint8_t pcf8574_read(void)
 static void pca9554_write_output(uint8_t value)
 {
     uint8_t i2c_err = 0;
+    static uint8_t s_last_diag_value = 0xFF;
     
     // KORAK 1: Piši Output register
     s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
@@ -141,11 +142,59 @@ static void pca9554_write_output(uint8_t value)
         uint8_t read_back = s_extI2C.read();
         if (read_back != value) {
             LOG_ERROR("[HAL] Output write MISMATCH! Wrote 0x%02X but read back 0x%02X", value, read_back);
-        } else {
-            LOG_DEBUG("[HAL] Output write OK: 0x%02X", value);
         }
     } else {
         LOG_ERROR("[HAL] pca9554_write_output: no read response");
+        return;
+    }
+
+    // KORAK 3: dijagnostika stvarnog nivoa pinova i trenutne konfiguracije.
+    uint8_t cfg = 0xFF;
+    uint8_t pins = 0xFF;
+
+    s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
+    s_extI2C.write(PCA_REG_CONFIG);
+    i2c_err = s_extI2C.endTransmission(false);
+    if (i2c_err != 0) {
+        LOG_ERROR("[HAL] pca9554_write_output: config read failed, err=%d", i2c_err);
+        return;
+    }
+    s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
+    if (s_extI2C.available()) {
+        cfg = s_extI2C.read();
+    } else {
+        LOG_ERROR("[HAL] pca9554_write_output: no config response");
+        return;
+    }
+
+    s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
+    s_extI2C.write(PCA_REG_INPUT);
+    i2c_err = s_extI2C.endTransmission(false);
+    if (i2c_err != 0) {
+        LOG_ERROR("[HAL] pca9554_write_output: input read failed, err=%d", i2c_err);
+        return;
+    }
+    s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
+    if (s_extI2C.available()) {
+        pins = s_extI2C.read();
+    } else {
+        LOG_ERROR("[HAL] pca9554_write_output: no input response");
+        return;
+    }
+
+    uint8_t output_mask = (RELAY1_BIT | RELAY2_BIT | RELAY3_BIT | (1 << EXP_PIN_RESERVE_OUT));
+    uint8_t expected_high = value & output_mask;
+    uint8_t actual_high = pins & output_mask;
+    uint8_t bad_mask = expected_high & (uint8_t)(~actual_high);
+
+    if (bad_mask != 0 || cfg != PCA_CONFIG_VALUE || value != s_last_diag_value) {
+        LOG_INFO("[HAL] PCA9554 diag: latch=0x%02X pins=0x%02X cfg=0x%02X badMask=0x%02X",
+                 value, pins, cfg, bad_mask);
+        s_last_diag_value = value;
+    }
+
+    if (bad_mask != 0) {
+        LOG_ERROR("[HAL] PCA9554 output pin-level mismatch (expected HIGH not seen) mask=0x%02X", bad_mask);
     }
 }
 
