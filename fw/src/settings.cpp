@@ -23,6 +23,11 @@ static bool        s_on_settings = false;
 static unsigned long s_last_touch_ms = 0;
 static bool        s_screensaver_active = false;
 
+static bool timeout_is_valid(uint8_t t)
+{
+    return (t == 30) || (t == 60) || (t == 120);
+}
+
 static void inactivity_apply_screensaver(void)
 {
     s_screensaver_active = true;
@@ -83,6 +88,11 @@ void settings_init(void)
     // Clamp modbus address
     if (g_sys_cfg.modbus_addr < 1 || g_sys_cfg.modbus_addr > 247)
         g_sys_cfg.modbus_addr = 1;
+
+    // Clamp inactivity timeout to supported UI values.
+    if (!timeout_is_valid(g_sys_cfg.timeout_s)) {
+        g_sys_cfg.timeout_s = INACTIVITY_TIMEOUT_DEFAULT_S;
+    }
 
     LOG_INFO("[CFG] Loaded: modbus=%u  bright_h=%u  bright_l=%u  hyst=%.1f",
              g_sys_cfg.modbus_addr,
@@ -148,6 +158,9 @@ void inactivity_touch_event(void)
 void inactivity_set_on_settings(bool on)
 {
     s_on_settings    = on;
+    if (on) {
+        s_screensaver_active = false;
+    }
     s_last_touch_ms  = millis();  // reset timer when entering/leaving settings
 }
 
@@ -160,6 +173,20 @@ void inactivity_check(void)
 {
     if (g_wifi_ap_active) return;   // paused while WiFi AP is active
     if (ui_clean_countdown_active()) return;
+    if (s_screensaver_active) return;
+
+    // Inactivity timeout applies to Settings screens only.
+    lv_obj_t *active = lv_scr_act();
+    bool on_settings_screen =
+        (active == ui_Settings1) ||
+        (active == ui_Settings2) ||
+        (active == ui_Settings3);
+    if (!on_settings_screen && !s_on_settings) return;
+
+    // Runtime safety net: if NVS is corrupted, fall back to default.
+    if (!timeout_is_valid(g_sys_cfg.timeout_s)) {
+        g_sys_cfg.timeout_s = INACTIVITY_TIMEOUT_DEFAULT_S;
+    }
 
     unsigned long elapsed = millis() - s_last_touch_ms;
     if (elapsed >= ((unsigned long)g_sys_cfg.timeout_s * 1000UL)) {

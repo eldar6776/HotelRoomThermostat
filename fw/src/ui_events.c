@@ -271,9 +271,9 @@ void ui_sync_settings_to_widgets(void)
     if (ui_SliderBrightHigh) lv_slider_set_value(ui_SliderBrightHigh, g_sys_cfg.bright_high * 100 / 1023, LV_ANIM_OFF);
     if (ui_SliderBrightLow)  lv_slider_set_value(ui_SliderBrightLow,  g_sys_cfg.bright_low  * 100 / 1023, LV_ANIM_OFF);
     
-    static const uint8_t timeout_table[] = {15, 30, 60, 120};
+    static const uint8_t timeout_table[] = {30, 60, 120};
     if (ui_DropTimeout) {
-        for(uint16_t i=0; i<4; i++) {
+        for(uint16_t i = 0; i < 3; i++) {
             if(timeout_table[i] == g_sys_cfg.timeout_s) {
                 lv_dropdown_set_selected(ui_DropTimeout, i);
                 break;
@@ -412,7 +412,7 @@ void action_timeout_changed(lv_event_t *e)
 {
     (void)e;
     inactivity_reset();
-    static const uint8_t timeout_table[] = {15, 30, 60, 120};
+    static const uint8_t timeout_table[] = {30, 60, 120};
     uint16_t sel = lv_dropdown_get_selected(ui_DropTimeout);
     if (sel < sizeof(timeout_table))
         g_sys_cfg.timeout_s = timeout_table[sel];
