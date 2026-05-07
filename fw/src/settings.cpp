@@ -21,9 +21,11 @@ bool         g_wifi_ap_active = false;
 static Preferences s_prefs;
 static bool        s_on_settings = false;
 static unsigned long s_last_touch_ms = 0;
+static bool        s_screensaver_active = false;
 
 static void inactivity_apply_screensaver(void)
 {
+    s_screensaver_active = true;
     // Dim display on timeout, then return to Main from any screen.
     hal_backlight_set(g_sys_cfg.bright_low);
 
@@ -131,6 +133,7 @@ void settings_reset_dirty(void)
 // ── Inactivity timeout ────────────────────────────────────────────────────────
 void inactivity_reset(void)
 {
+    if (s_screensaver_active) return;  // ignore events during screen transition
     // Keep legacy API behavior but ensure any touch restores high brightness.
     hal_backlight_set(g_sys_cfg.bright_high);
     s_last_touch_ms = millis();
@@ -138,6 +141,7 @@ void inactivity_reset(void)
 
 void inactivity_touch_event(void)
 {
+    s_screensaver_active = false;  // real user touch clears the flag
     inactivity_reset();
 }
 

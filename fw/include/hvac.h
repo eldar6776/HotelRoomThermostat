@@ -7,6 +7,7 @@
 #define NTC_NOM_R         100000.0f   // 100 kΩ at 25 °C
 #define NTC_NOM_TEMP      298.15f     // 25 °C in Kelvin
 #define NTC_SERIES_R      100000.0f   // series resistor 100 kΩ
+#define NTC_VCC_MV        3300.0f     // napon gornjeg kraka NTC djelitelja (3.3V LDO), u mV
 #define ADC_MAX_VAL       4095.0f
 #define EMA_ALPHA         0.1f        // exponential moving average factor
 

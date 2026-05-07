@@ -29,8 +29,10 @@ init(autoreset=True)
 MB_REG_TARGET_TEMP = 0      # 40001
 MB_REG_HVAC_MODE = 1        # 40002
 MB_REG_FAN_SPEED = 2        # 40003
-MB_REG_RELAY_MODE = 21      # 40022
+MB_REG_RELAY_MODE = 21      # 40022 – 0=3-speed, 1=1-relay
 MB_REG_WX_WATCHDOG = 29     # 40030
+MB_REG_WX_BASE = 30         # 40031 – day-0 data start
+MB_HREG_COUNT = 48          # total holding registers (6 days × 3 + 30)
 
 # Input Registers (30001+, 0-based addressing)
 MB_IREG_CURRENT_TEMP = 0    # 30001
@@ -50,6 +52,10 @@ MB_ISTS_WINDOW_CLOSED = 0   # 10001
 MB_ISTS_SYSTEM_READY = 1    # 10002
 MB_ISTS_HVAC_ACTIVE = 2     # 10003
 MB_ISTS_WEATHER_VALID = 3   # 10004
+
+# Relay Mode values (MB_REG_RELAY_MODE)
+RELAY_3SPEED = 0   # 3-speed fan relay control
+RELAY_1RELAY = 1   # single on/off relay control
 
 # HVAC Modes
 HVAC_OFF = 0
@@ -185,25 +191,34 @@ def safe_read_discrete_inputs(client, slave_id, address, count):
 def test_read_holding_registers(client, slave_id, verbose=True):
     """Test reading holding registers"""
     if verbose:
-        print_header("TEST: Read Holding Registers (40001-40003)")
+        print_header("TEST: Read Holding Registers (40001-40003, 40022)")
     
     regs = safe_read_holding_registers(client, slave_id, MB_REG_TARGET_TEMP, 3)
-    if regs:
-        target_temp = regs[0] / 10.0
-        hvac_mode = regs[1]
-        fan_speed = regs[2]
-        
-        mode_names = {0: "OFF", 1: "HEAT", 2: "COOL"}
-        fan_names = {0: "AUTO", 1: "LOW", 2: "MID", 3: "HIGH"}
-        
-        if verbose:
-            print_success(f"Target Temperature: {target_temp:.1f} °C (raw: {regs[0]})")
-            print_success(f"HVAC Mode: {mode_names.get(hvac_mode, 'UNKNOWN')} ({hvac_mode})")
-            print_success(f"Fan Speed: {fan_names.get(fan_speed, 'UNKNOWN')} ({fan_speed})")
-        else:
-            print_success(f"Target Temp: {target_temp:.1f}°C, Mode: {hvac_mode}, Fan: {fan_speed}")
-        return True
-    return False
+    if regs is None:
+        return False
+
+    target_temp = regs[0] / 10.0
+    hvac_mode = regs[1]
+    fan_speed = regs[2]
+
+    mode_names = {0: "OFF", 1: "HEAT", 2: "COOL"}
+    fan_names = {0: "AUTO", 1: "LOW", 2: "MID", 3: "HIGH"}
+    relay_mode_names = {RELAY_3SPEED: "3-speed", RELAY_1RELAY: "1-relay"}
+
+    # Read relay mode separately (register 21 – gap after reg 2)
+    relay_regs = safe_read_holding_registers(client, slave_id, MB_REG_RELAY_MODE, 1)
+    relay_mode = relay_regs[0] if relay_regs is not None else None
+
+    if verbose:
+        print_success(f"Target Temperature: {target_temp:.1f} °C (raw: {regs[0]})")
+        print_success(f"HVAC Mode: {mode_names.get(hvac_mode, 'UNKNOWN')} ({hvac_mode})")
+        print_success(f"Fan Speed: {fan_names.get(fan_speed, 'UNKNOWN')} ({fan_speed})")
+        if relay_mode is not None:
+            print_success(f"Relay Mode: {relay_mode_names.get(relay_mode, 'UNKNOWN')} ({relay_mode})")
+    else:
+        relay_str = relay_mode_names.get(relay_mode, '?') if relay_mode is not None else '?'
+        print_success(f"Target Temp: {target_temp:.1f}°C, Mode: {hvac_mode}, Fan: {fan_speed}, Relay: {relay_str}")
+    return True
 
 def test_read_input_registers(client, slave_id, verbose=True):
     """Test reading input registers"""
@@ -294,6 +309,22 @@ def test_write_hvac_mode(client, slave_id, mode, verbose=True):
             print_error(f"Verification failed: expected {mode}, got {regs[0] if regs else 'N/A'}")
     return False
 
+def test_write_relay_mode(client, slave_id, mode, verbose=True):
+    """Test writing relay control mode (MB_REG_RELAY_MODE = 40022)"""
+    relay_mode_names = {RELAY_3SPEED: "3-speed", RELAY_1RELAY: "1-relay"}
+    if verbose:
+        print_header(f"TEST: Write Relay Mode ({relay_mode_names.get(mode, 'UNKNOWN')})")
+
+    if safe_write_register(client, slave_id, MB_REG_RELAY_MODE, mode):
+        time.sleep(0.2)
+        regs = safe_read_holding_registers(client, slave_id, MB_REG_RELAY_MODE, 1)
+        if regs and regs[0] == mode:
+            print_success(f"Relay mode set to {relay_mode_names.get(mode, 'UNKNOWN')} (verified)")
+            return True
+        else:
+            print_error(f"Verification failed: expected {mode}, got {regs[0] if regs else 'N/A'}")
+    return False
+
 def test_write_fan_speed(client, slave_id, speed, verbose=True):
     """Test writing fan speed"""
     fan_names = {FAN_AUTO: "AUTO", FAN_LOW: "LOW", FAN_MID: "MID", FAN_HIGH: "HIGH"}
@@ -379,8 +410,9 @@ def test_weather_data_write(client, slave_id, verbose=True, cycle=0):
          (base_temp - 1) * 10, (base_temp - 4) * 10),
     ]
     
-    base_addr = 30  # MB_REG_WX_BASE
-    day_labels = ["Today", "Mon", "Tue", "Wed", "Thu", "Fri"]
+    base_addr = MB_REG_WX_BASE
+    # Firmware DAY_NAMES: index 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    day_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     icon_names = {
         WX_ICON_SUNNY: "Sunny",
         WX_ICON_PARTLY_CLR: "Partly Cloudy",
@@ -405,8 +437,9 @@ def test_weather_data_write(client, slave_id, verbose=True, cycle=0):
         day_id = packed & 0xFF
         icon_id = (packed >> 8) & 0xFF
         icon_name = icon_names.get(icon_id, f"Unknown({icon_id})")
+        day_name = day_labels[day_id] if day_id < len(day_labels) else f"day_id={day_id}"
         label = ">>> TODAY <<<" if day_idx == 0 else f"Day {day_idx}"
-        print_success(f"{label} ({day_labels[day_id]}): {icon_name}, High {temp_high/10:.1f}°C, Low {temp_low/10:.1f}°C")
+        print_success(f"{label} ({day_name}): {icon_name}, High {temp_high/10:.1f}°C, Low {temp_low/10:.1f}°C")
     
     # CRITICAL: Write watchdog trigger LAST (register 29)
     # This triggers firmware callback to parse the data we just wrote above
@@ -444,7 +477,10 @@ def run_quick_test(client, slave_id):
     
     test_write_coils(client, slave_id)
     time.sleep(0.5)
-    
+
+    test_write_relay_mode(client, slave_id, RELAY_3SPEED)
+    time.sleep(0.5)
+
     test_weather_data_write(client, slave_id, cycle=1)
     
     print_header("Quick test completed successfully!")
@@ -492,7 +528,12 @@ def run_cycle_test(client, slave_id, cycles):
         # Test coil writes (DND/MUR ON/OFF)
         test_write_coils(client, slave_id)
         time.sleep(0.5)
-        
+
+        # Cycle through relay modes
+        relay_modes = [RELAY_3SPEED, RELAY_1RELAY]
+        test_write_relay_mode(client, slave_id, relay_modes[cycle % len(relay_modes)])
+        time.sleep(0.5)
+
         # Weather data write every cycle with varying data
         test_weather_data_write(client, slave_id, cycle=cycle)
         time.sleep(0.5)
@@ -546,7 +587,12 @@ def run_continuous_test(client, slave_id, interval=2.0):
             
             test_write_coils(client, slave_id)
             time.sleep(0.5)
-            
+
+            # Cycle through relay modes
+            relay_modes = [RELAY_3SPEED, RELAY_1RELAY]
+            test_write_relay_mode(client, slave_id, relay_modes[test_count % len(relay_modes)])
+            time.sleep(0.5)
+
             # Weather data write EVERY cycle with varying data
             test_weather_data_write(client, slave_id, cycle=test_count)
             time.sleep(0.5)

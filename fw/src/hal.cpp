@@ -197,11 +197,21 @@ static void expander_init(void)
     LOG_INFO("[HAL] PCF8574AN OK — ⚠️ pull-down otpornici OBAVEZNI!");
 
 #else
-    // ─── PCA9554ADH INICIJALIZACIJA ──────────────────────────────────────
+    // ─── PCA9554 INICIJALIZACIJA ─────────────────────────────────────────
     // ✅ GLITCH-FREE: Svi pinovi su INPUT (high-Z) pri power-on
     // Output latch = 0x00. Nema izlaznog signala dok se ne konfigurira.
 
-    LOG_INFO("[HAL] Step 1b: PCA9554ADH init (addr=0x%02X)...", EXPANDER_I2C_ADDR);
+    LOG_INFO("[HAL] Step 1b: PCA9554 init (addr=0x%02X)...", EXPANDER_I2C_ADDR);
+
+    // Provjeri I2C komunikaciju prije nastavka
+    s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
+    uint8_t i2c_err = s_extI2C.endTransmission();
+    if (i2c_err != 0) {
+        LOG_ERROR("[HAL] PCA9554 NOT FOUND at 0x%02X! I2C error=%d (0=OK, 1=data too long, 2=NACK addr, 3=NACK data, 4=other)",
+                  EXPANDER_I2C_ADDR, i2c_err);
+    } else {
+        LOG_INFO("[HAL] PCA9554 I2C ACK OK at 0x%02X", EXPANDER_I2C_ADDR);
+    }
 
     // GLITCH-FREE SEKVENCA:
     // KORAK 1: Postavi output latch na 0 (svi LOW)
@@ -213,7 +223,7 @@ static void expander_init(void)
     pca9554_configure();
     s_exp_config = 1;
 
-    LOG_INFO("[HAL] PCA9554ADH OK — ✅ glitch-free inicijalizacija");
+    LOG_INFO("[HAL] PCA9554 OK — ✅ glitch-free inicijalizacija");
 #endif
 }
 
@@ -343,6 +353,9 @@ static void touch_read_cb(lv_indev_drv_t *drv, lv_indev_data_t *data)
 // ── Backlight (analogWrite, 0-255) ───────────────────────────────────────────
 void hal_backlight_set(uint16_t level)
 {
+    static uint16_t s_current_level = UINT16_MAX;  // force write on first call
+    if (level == s_current_level) return;
+    s_current_level = level;
     // Map 0-1023 (PWM duty cycle range) → 0-255 (analogWrite range)
     uint8_t pwm = (level > 1023) ? 255 : (level * 255 / 1023);
     analogWrite(PIN_LCD_BL, pwm);

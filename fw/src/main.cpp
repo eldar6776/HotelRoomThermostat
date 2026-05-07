@@ -146,17 +146,12 @@ void setup(void)
         default:       lv_label_set_text(ui_LabelFanStatus, "Auto"); break;
     }
     
-    // 9. Register Settings3 slider init callback (for swipe navigation)
-    lv_obj_add_event_cb(ui_Settings3, settings3_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
-    // Also init on first screen creation
+    // 9. Initialize Settings3 controls on first screen creation.
+    // Screen-loaded callback is already attached in generated LVGL code.
     settings3_loaded_cb(NULL);
 
-    // 10. DND/MUR button logic
-    lv_obj_add_flag(ui_ButtonDnd, LV_OBJ_FLAG_CHECKABLE);
-    lv_obj_add_flag(ui_ButtonMur, LV_OBJ_FLAG_CHECKABLE);
-    lv_obj_add_event_cb(ui_ButtonDnd, action_dnd_toggled, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_add_event_cb(ui_ButtonMur, action_mur_toggled, LV_EVENT_VALUE_CHANGED, NULL);
-    LOG_INFO("[MAIN] DND/MUR event handlers attached.");
+    // 10. DND/MUR handlers are attached in generated LVGL screen code.
+    LOG_INFO("[MAIN] DND/MUR event handlers ready.");
 
     LOG_INFO("[MAIN] Setup complete");
 }

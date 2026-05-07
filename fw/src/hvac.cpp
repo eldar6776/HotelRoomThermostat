@@ -3,6 +3,7 @@
 #include "debug_logger.h"
 #include "settings.h"
 #include <math.h>
+#include <esp_adc_cal.h>
 
 // ── State ─────────────────────────────────────────────────────────────────────
 static float     s_room_temp_ema = 20.0f;  // °C
@@ -13,21 +14,40 @@ static uint8_t   s_auto_fan_stage = FAN_LOW;
 static bool      s_auto_fan_init  = false;
 static bool      s_window_open   = false;
 
+// ── ADC kalibracija (ESP-IDF v4 esp_adc_cal) ───────────────────────────────
+static esp_adc_cal_characteristics_t s_adc_chars;
+static bool                          s_adc_cal_ok = false;
+
 // Deadband state machine
 enum db_state_t { DB_IDLE, DB_WAITING };
 static db_state_t s_db_state = DB_IDLE;
 static unsigned long s_db_start_ms = 0;
 static uint8_t   s_db_target_relay = 0;   // relay to turn ON after deadband
 
-// ── NTC: ADC → temperature ────────────────────────────────────────────────────
-static float adc_to_celsius(int raw)
+// ── NTC: kalibrirani mV → temperatura ────────────────────────────────────────
+// v_mv: kalibrirani napon s ADC-a u mV (ESP-IDF adc_cali_raw_to_voltage)
+// Vcc NTC djelitelja (NTC_VCC_MV) i ADC referenca su sada eksplicitno odvojeni.
+static float adc_to_celsius(int v_mv)
 {
-    if (raw <= 0 || raw >= (int)ADC_MAX_VAL) return -999.0f;
-    float voltage = (float)raw / ADC_MAX_VAL;
+    if (v_mv <= 0 || v_mv >= (int)NTC_VCC_MV) return -999.0f;
+    float v_out = (float)v_mv / 1000.0f;                    // mV → V
+    float v_cc  = NTC_VCC_MV / 1000.0f;                     // 3.3 V
     // Voltage divider: Vout = Vcc * Rntc / (Rseries + Rntc)
-    float r_ntc = NTC_SERIES_R * voltage / (1.0f - voltage);
+    float r_ntc = NTC_SERIES_R * v_out / (v_cc - v_out);
     float kelvin = 1.0f / (log(r_ntc / NTC_NOM_R) / NTC_BETA + 1.0f / NTC_NOM_TEMP);
     return kelvin - 273.15f;
+}
+
+// ── Čitanje NTC — Arduino raw + ESP-IDF kalibracija ───────────────────────────
+// Vraća kalibrirani napon u mV. Bez kalibracije vraća linearnu procjenu.
+static int read_ntc_mv(void)
+{
+    int raw = analogRead(PIN_NTC);
+    if (s_adc_cal_ok) {
+        return (int)esp_adc_cal_raw_to_voltage((uint32_t)raw, &s_adc_chars);
+    }
+    // Fallback: linearna procjena bez kalibracije (3100 mV = full scale za ADC_11db)
+    return (int)(raw * 3100 / 4095);
 }
 
 // ── Relay control with 100 ms deadband ───────────────────────────────────────
@@ -154,13 +174,28 @@ static uint8_t pick_relay(float error, float hyst)
 // ── hvac_init ────────────────────────────────────────────────────────────────
 void hvac_init(void)
 {
-    // ADC init — use Arduino analogRead (already configured via framework)
-    analogSetAttenuation(ADC_11db);  // 0-3.3 V range
+    // ── ADC init (Arduino) + ESP-IDF kalibracija (ADC1_CH0 = IO1 = PIN_NTC) ─────
+    analogSetAttenuation(ADC_11db);
     analogSetPinAttenuation(PIN_NTC, ADC_11db);
 
+    // esp_adc_cal čita fabrički upisane eFuse kalibracijske točke na ESP32-S3.
+    // Ovo kompenzuje chip-to-chip varijancu i termalni drift interne reference.
+    esp_adc_cal_value_t cal_type = esp_adc_cal_characterize(
+        ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 3300, &s_adc_chars);
+    if (cal_type == ESP_ADC_CAL_VAL_EFUSE_TP || cal_type == ESP_ADC_CAL_VAL_EFUSE_TP_FIT) {
+        s_adc_cal_ok = true;
+        LOG_INFO("[HVAC] ADC kalibracija OK (eFuse Two Point, type=%d)", (int)cal_type);
+    } else if (cal_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
+        s_adc_cal_ok = true;
+        LOG_INFO("[HVAC] ADC kalibracija OK (eFuse Vref, type=%d)", (int)cal_type);
+    } else {
+        s_adc_cal_ok = false;
+        LOG_ERROR("[HVAC] ADC kalibracija NIJE dostupna (type=%d) — fallback na linearnu procjenu", (int)cal_type);
+    }
+
     // Read initial room temperature
-    int raw = analogRead(PIN_NTC);
-    float t = adc_to_celsius(raw);
+    int v_mv = read_ntc_mv();
+    float t = adc_to_celsius(v_mv);
     if (t > -50.0f && t < 85.0f) {
         s_room_temp_ema = t;
     }
@@ -199,8 +234,8 @@ void hvac_update(void)
     if (s_setpoint > TEMP_SETPOINT_MAX) s_setpoint = TEMP_SETPOINT_MAX;
 
     // 1. Read NTC with EMA filter
-    int raw = analogRead(PIN_NTC);
-    float t = adc_to_celsius(raw);
+    int v_mv = read_ntc_mv();
+    float t = adc_to_celsius(v_mv);
     if (t > -50.0f && t < 85.0f) {
         s_room_temp_ema = EMA_ALPHA * t + (1.0f - EMA_ALPHA) * s_room_temp_ema;
     }
@@ -214,8 +249,11 @@ void hvac_update(void)
         s_window_open = window_now_open;
     }
     if (s_window_open && s_hvac_mode != HVAC_OFF) {
-        // Force HVAC off while window open
-        LOG_DEBUG("Window is open, forcing HVAC OFF");
+        // Force HVAC off while window open — log only when relay actually needs shutting off
+        bool any_on = hal_relay_is_on(1) || hal_relay_is_on(2) || hal_relay_is_on(3);
+        if (any_on) {
+            LOG_DEBUG("Window is open, forcing HVAC OFF");
+        }
         relay_set_target(0);
         return;
     }
