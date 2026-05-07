@@ -8,10 +8,7 @@
 #define MB_REG_HVAC_MODE     1   // 40002 – 0=OFF,1=HEAT,2=COOL
 #define MB_REG_FAN_SPEED     2   // 40003 – 0=AUTO,1=LOW,2=MID,3=HIGH
 #define MB_REG_RELAY_MODE    21  // 40022 – 0=3-speed,1=1-relay
-// Weather block: 40030-40048  (0-based: 29-47)
-#define MB_REG_WX_WATCHDOG   29  // 40030 – watchdog timestamp flag
-#define MB_REG_WX_BASE       30  // 40031 – day-0 data start
-#define MB_HREG_COUNT        48  // total holding registers (6 days × 3 + 30)
+#define MB_HREG_COUNT        22  // total holding registers (0-21)
 #define MB_COIL_DND          0   // 00001 – Do Not Disturb
 #define MB_COIL_MUR          1   // 00002 – Make Up Room
 
@@ -29,8 +26,7 @@
 #define MB_ISTS_WINDOW_CLOSED 0  // 10001 – window sensor (1=closed,0=open)
 #define MB_ISTS_SYSTEM_READY  1  // 10002 – system initialized
 #define MB_ISTS_HVAC_ACTIVE   2  // 10003 – HVAC relay firing
-#define MB_ISTS_WEATHER_VALID 3  // 10004 – weather data not stale
-#define MB_ISTS_COUNT         4  // total discrete inputs
+#define MB_ISTS_COUNT         3  // total discrete inputs
 
 // HVAC mode values
 #define HVAC_OFF   0
@@ -43,45 +39,12 @@
 #define FAN_MID    2
 #define FAN_HIGH   3
 
-// ── Weather icon mapping ──────────────────────────────────────────────────────
-// Weather icon IDs used in Modbus register (icon_id field)
-// Maps to LVGL image assets for weather forecast display
-#define WX_ICON_SUNNY       0   // Clear sky / Sunny day
-#define WX_ICON_PARTLY_CLR  1   // Partly cloudy / Sunny with clouds  
-#define WX_ICON_CLOUDY      2   // Overcast / Cloudy
-#define WX_ICON_RAINY       3   // Rain
-#define WX_ICON_SNOWY       4   // Snow
-#define WX_ICON_STORMY      5   // Thunderstorm
-#define WX_ICON_FOGGY       6   // Fog / Mist
-#define WX_ICON_WINDY       7   // Windy conditions
-
-// ── Weather data per day ─────────────────────────────────────────────────────
-// Register packing (3 regs per day, 40031-40045):
-//   reg+0 = (day_id & 0xFF) | ((icon_id & 0xFF) << 8)
-//   reg+1 = temp_high_c10 (signed, ×10 e.g. 250 = 25.0 °C)
-//   reg+2 = temp_low_c10  (signed, ×10 e.g. 180 = 18.0 °C)
-typedef struct {
-    char     day_name[8];      // "Mon", "Tue" … (from day_id lookup)
-    uint8_t  icon_id;          // See WX_ICON_* defines above
-    int16_t  temp_high_c10;    // High temperature ×10
-    int16_t  temp_low_c10;     // Low  temperature ×10
-} wx_day_t;
-
-// Alias used by UI layer (Task 06)
-typedef wx_day_t forecast_data_t;
-
-#define WX_MAX_DAYS   6
-#define WX_STALE_MS   (12UL * 3600UL * 1000UL)   // 12 h
-
 // ── Shared modbus register mirror ────────────────────────────────────────────
 // Read from any module; write only via modbus_set_* helpers to keep Modbus
 // slave registers in sync.
 typedef struct {
     volatile uint16_t hreg[MB_HREG_COUNT];
     volatile uint16_t ireg[MB_IREG_COUNT];  // input registers (read-only)
-    volatile bool     weather_stale;
-    volatile unsigned long wx_last_update_ms;
-    wx_day_t          wx_days[WX_MAX_DAYS];
 } mb_data_t;
 
 extern mb_data_t g_mb;
@@ -93,7 +56,6 @@ extern "C" {
 
 void modbus_init(uint8_t slave_addr);
 void modbus_poll(void);               // call every loop()
-void modbus_check_watchdog(void);     // call periodically (e.g. every 60 s)
 void modbus_update_inputs(void);      // update input registers & discrete inputs
 
 // Helpers to write a holding register AND keep slave mirror in sync

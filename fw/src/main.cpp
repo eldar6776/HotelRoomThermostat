@@ -21,13 +21,11 @@ extern "C" {
 
 // ── Timing constants ──────────────────────────────────────────────────────────
 #define HVAC_UPDATE_MS         500UL   // NTC read + relay logic period
-#define MODBUS_WATCHDOG_MS   60000UL   // weather watchdog check period
 #define CLOCK_UPDATE_MS       1000UL   // clock label refresh period
 #define INACTIVITY_CHECK_MS   1000UL   // inactivity poll period
 
 // ── Timestamps ────────────────────────────────────────────────────────────────
 static unsigned long t_hvac      = 0;
-static unsigned long t_watchdog  = 0;
 static unsigned long t_clock     = 0;
 static unsigned long t_inact     = 0;
 
@@ -58,12 +56,9 @@ static void update_temp_labels(void)
     snprintf(temp_buf, sizeof(temp_buf), "Innen:\n%.1f°C", (double)t);
     lv_label_set_text(ui_LabelRoomTemp, temp_buf);
 
-    // Window open warning
+    // Window open warning — no UI element currently assigned
     if (hvac_is_window_open()) {
-//        lv_label_set_text(ui_LabelWeatherTodayDesc, "WINDOW OPEN");
-//        lv_obj_clear_flag(ui_LabelWeatherTodayDesc, LV_OBJ_FLAG_HIDDEN);
     } else {
-//        lv_obj_add_flag(ui_LabelWeatherTodayDesc, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -175,12 +170,6 @@ void loop(void)
         update_hvac_icons();
         // Update Modbus input registers with current system state
         modbus_update_inputs();
-    }
-
-    // Weather watchdog check
-    if (now - t_watchdog >= MODBUS_WATCHDOG_MS) {
-        t_watchdog = now;
-        modbus_check_watchdog();
     }
 
     // Clock refresh

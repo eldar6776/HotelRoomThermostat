@@ -12,11 +12,6 @@ mb_data_t g_mb;
 
 static ModbusRTU s_mb;
 
-// ── Day name lookup ───────────────────────────────────────────────────────────
-static const char *const DAY_NAMES[7] = {
-    "Sun","Mon","Tue","Wed","Thu","Fri","Sat"
-};
-
 // ── Callbacks ────────────────────────────────────────────────────────────────
 
 // Called by the library on every holding-register write from the master.
@@ -31,35 +26,6 @@ static uint16_t cb_hreg_write(TRegister *reg, uint16_t val)
     // NO LOG HERE - would interfere with Modbus response timing on shared Serial!
     // LOG_INFO("[MB] Master write: hreg[%u] = %u", reg_index, val);
 
-    // Weather watchdog: react to write of register at index MB_REG_WX_WATCHDOG
-    if (reg_index == MB_REG_WX_WATCHDOG && val != 0) {
-        g_mb.wx_last_update_ms = millis();
-        g_mb.weather_stale     = false;
-
-        // Parse weather data: 3 words per day
-        // reg+0 = (day_id & 0xFF) | ((icon_id & 0xFF) << 8)
-        // reg+1 = temp_high_c10  (signed)
-        // reg+2 = temp_low_c10   (signed)
-        for (uint8_t d = 0; d < WX_MAX_DAYS; d++) {
-            uint16_t base     = MB_REG_WX_BASE + d * 3;
-            uint16_t packed   = s_mb.Hreg(base);
-            uint16_t day_id   = packed & 0x00FF;
-            uint16_t icon_id  = (packed >> 8) & 0x00FF;
-            int16_t  t_high   = (int16_t)s_mb.Hreg(base + 1);
-            int16_t  t_low    = (int16_t)s_mb.Hreg(base + 2);
-
-            if (day_id < 7) {
-                strncpy(g_mb.wx_days[d].day_name, DAY_NAMES[day_id],
-                        sizeof(g_mb.wx_days[d].day_name) - 1);
-                g_mb.wx_days[d].day_name[sizeof(g_mb.wx_days[d].day_name) - 1] = '\0';
-            } else {
-                g_mb.wx_days[d].day_name[0] = '\0';  // Invalid day_id, clear name
-            }
-            g_mb.wx_days[d].icon_id       = (uint8_t)(icon_id & 0xFF);
-            g_mb.wx_days[d].temp_high_c10 = t_high;
-            g_mb.wx_days[d].temp_low_c10  = t_low;
-        }
-    }
     return val;   // accept the written value
 }
 
@@ -71,8 +37,6 @@ extern "C" {
 void modbus_init(uint8_t slave_addr)
 {
     memset(&g_mb, 0, sizeof(g_mb));
-    g_mb.weather_stale     = true;
-    g_mb.wx_last_update_ms = 0;
 
     // Modbus shares Serial (UART0) with debug — same baud rate 115200
     // RS485 DE pin: IO41 (dedicated pin, no SPI sharing)
@@ -114,17 +78,6 @@ void modbus_init(uint8_t slave_addr)
 void modbus_poll(void)
 {
     s_mb.task();
-}
-
-// ── modbus_check_watchdog ─────────────────────────────────────────────────────
-void modbus_check_watchdog(void)
-{
-    if (!g_mb.weather_stale) {
-        if ((millis() - g_mb.wx_last_update_ms) > WX_STALE_MS) {
-            g_mb.weather_stale = true;
-            LOG_INFO("[MB]  Weather data stale (>12h)");
-        }
-    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -214,9 +167,6 @@ void modbus_update_inputs(void)
     // Discrete Input 2: HVAC active (any relay on)
     bool hvac_active = (relay_bits != 0);
     s_mb.Ists(MB_ISTS_HVAC_ACTIVE, hvac_active);
-
-    // Discrete Input 3: Weather valid (not stale)
-    s_mb.Ists(MB_ISTS_WEATHER_VALID, !g_mb.weather_stale);
 }
 
 // ── Getter functions ──────────────────────────────────────────────────────────

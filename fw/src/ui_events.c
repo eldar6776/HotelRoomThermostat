@@ -17,28 +17,12 @@ extern lv_obj_t *ui_SwipeContainer;
 extern lv_obj_t *ui_LabelCleanCountdown;
 extern lv_obj_t *ui_LabelCleanText;
 extern lv_obj_t *ui_LabelCleanMsg;
-extern lv_obj_t *ui_LabelDay1, *ui_LabelDay2, *ui_LabelDay3, *ui_LabelDay4, *ui_LabelDay5;
-extern lv_obj_t *ui_ImgIcon1, *ui_ImgIcon2, *ui_ImgIcon3, *ui_ImgIcon4, *ui_ImgIcon5;
-extern lv_obj_t *ui_LabelTempHigh1, *ui_LabelTempHigh2, *ui_LabelTempHigh3, *ui_LabelTempHigh4, *ui_LabelTempHigh5;
-extern lv_obj_t *ui_LabelTempLow1, *ui_LabelTempLow2, *ui_LabelTempLow3, *ui_LabelTempLow4, *ui_LabelTempLow5;
-extern lv_obj_t *ui_TileWeather;
 extern lv_obj_t *ui_TileThermostat;
 extern lv_obj_t *ui_ArcTemp;
 extern lv_obj_t *ui_LabelTargetTemp;
 extern lv_obj_t *ui_LabelFanStatus;
 extern lv_obj_t *ui_LabelCurrentTemp;
 extern lv_obj_t *ui_LabelRoomTemp;
-extern lv_obj_t *ui_LabelWeatherTodayDesc;
-extern lv_obj_t *ui_LabelWeatherTodayTemp;
-extern lv_obj_t *ui_LabelWeatherCity;
-extern lv_obj_t *ui_ImageWeatherTodayIcon;
-extern lv_obj_t *ui_ImageWeatherTodayIcon1;
-extern lv_obj_t *ui_ImageWeatherTodayIcon2;
-extern lv_obj_t *ui_ImageWeatherTodayIcon3;
-extern lv_obj_t *ui_ImageWeatherTodayIcon4;
-extern lv_obj_t *ui_ImageWeatherTodayIcon5;
-extern lv_obj_t *ui_ImageWeatherTodayIcon6;
-extern lv_obj_t *ui_ImageWeatherTodayIcon7;
 extern lv_obj_t *ui_ImageHeatStatus;
 extern lv_obj_t *ui_ImageCoolStatus;
 extern lv_obj_t *ui_PinEntry;
@@ -84,16 +68,6 @@ void settings3_loaded_cb(lv_event_t *e)
     lv_slider_set_value(ui_SliderBrightHigh, g_sys_cfg.bright_high * 100 / 1023, LV_ANIM_OFF);
     lv_slider_set_value(ui_SliderBrightLow,  g_sys_cfg.bright_low  * 100 / 1023, LV_ANIM_OFF);
 }
-
-// Forward declarations for PNG images (weather forecast icons)
-extern const lv_img_dsc_t ui_img_sunny_day_png;         // WX_ICON_SUNNY + WX_ICON_PARTLY_CLR
-extern const lv_img_dsc_t ui_img_cloudy_png;            // WX_ICON_CLOUDY (2)
-extern const lv_img_dsc_t ui_img_rainy_png;             // WX_ICON_RAINY (3)
-extern const lv_img_dsc_t ui_img_snowy_png;             // WX_ICON_SNOWY (4)
-extern const lv_img_dsc_t ui_img_storm_png;             // WX_ICON_STORMY (5)
-extern const lv_img_dsc_t ui_img_foggy_png;             // WX_ICON_FOGGY (6)
-extern const lv_img_dsc_t ui_img_partly_cloudy_day_png; // WX_ICON_WINDY (7)
-extern const lv_img_dsc_t ui_img_hvac_png;              // Generic fallback icon
 
 // ── Clean screen timer ────────────────────────────────────────────────────────
 static lv_timer_t *s_clean_timer = NULL;

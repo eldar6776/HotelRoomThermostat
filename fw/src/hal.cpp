@@ -41,7 +41,8 @@ static TwoWire s_extI2C(1);
 // ── Expander state tracking ──────────────────────────────────────────────────
 // PCF8574AN: nema odvojeni output register — moramo pratiti stanje softverski
 // PCA9554ADH: ima output register ali pratimo stanje za hal_relay_is_on()
-static uint8_t s_exp_output_state = 0x00;  // Trenutni output latch
+// ⚠️ INICIJALNO: 0x00 = svi biti su 0 = svi releji OFF (ulaz LOW na ULN2003)
+static uint8_t s_exp_output_state = 0x00;  // Trenutni output latch — svi releji OFF
 static uint8_t s_exp_config       = 0x00;  // 0=PCF8574AN, 1=PCA9554ADH
 
 // ── PCF8574AN registeri ──────────────────────────────────────────────────────
@@ -108,43 +109,117 @@ static uint8_t pcf8574_read(void)
     return result;
 }
 
-// ── PCA9554ADH — Pisanje output registera ────────────────────────────────────
+// ── PCA9554ADH — Pisanje output registera sa verifikacijom ────────────────────
 static void pca9554_write_output(uint8_t value)
 {
+    uint8_t i2c_err = 0;
+    
+    // KORAK 1: Piši Output register
     s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
     s_extI2C.write(PCA_REG_OUTPUT);
     s_extI2C.write(value);
-    s_extI2C.endTransmission();
+    i2c_err = s_extI2C.endTransmission();
+    
+    if (i2c_err != 0) {
+        LOG_ERROR("[HAL] pca9554_write_output FAILED! value=0x%02X, I2C err=%d", value, i2c_err);
+        return;
+    }
+    
+    // KORAK 2: Čitaj Output register da se verificira što je napisano
+    delay(2);
+    s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
+    s_extI2C.write(PCA_REG_OUTPUT);
+    i2c_err = s_extI2C.endTransmission(false);  // Repeated start
+    
+    if (i2c_err != 0) {
+        LOG_ERROR("[HAL] pca9554_write_output: read verify failed, err=%d", i2c_err);
+        return;
+    }
+    
+    s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
+    if (s_extI2C.available()) {
+        uint8_t read_back = s_extI2C.read();
+        if (read_back != value) {
+            LOG_ERROR("[HAL] Output write MISMATCH! Wrote 0x%02X but read back 0x%02X", value, read_back);
+        } else {
+            LOG_DEBUG("[HAL] Output write OK: 0x%02X", value);
+        }
+    } else {
+        LOG_ERROR("[HAL] pca9554_write_output: no read response");
+    }
 }
 
-// ── PCA9554ADH — Čitanje input registera ─────────────────────────────────────
+// ── PCA9554ADH — Čitanje input registera s error handling ─────────────────────
 static uint8_t pca9554_read_inputs(void)
 {
     s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
     s_extI2C.write(PCA_REG_INPUT);
-    s_extI2C.endTransmission(false);  // Repeated start
+    uint8_t i2c_err = s_extI2C.endTransmission(false);  // Repeated start
+    
+    if (i2c_err != 0) {
+        LOG_ERROR("[HAL] PCA9554 read_inputs: write phase failed, err=%d", i2c_err);
+        return 0xFF;  // Safe default: all inputs HIGH
+    }
+    
     s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
     if (s_extI2C.available()) {
         return s_extI2C.read();
     }
-    return 0x00;
+    LOG_ERROR("[HAL] PCA9554 read_inputs: no data from slave");
+    return 0xFF;  // Safe default: all inputs HIGH
 }
 
 // ── PCA9554ADH — Konfiguracija ───────────────────────────────────────────────
 static void pca9554_configure(void)
 {
+    uint8_t verify_val = 0;
+    uint8_t retries = 3;
+
     // KORAK 1: Polarity Inversion = 0 (normalna logika, bez invertovanja)
     s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
     s_extI2C.write(PCA_REG_POLARITY);
     s_extI2C.write(0x00);
     s_extI2C.endTransmission();
+    delay(5);
 
     // KORAK 2: Configuration register — postavlja smjer pinova
-    // Tek sada pinovi postaju OUTPUT — ali sa već postavljenom vrijednošću 0
+    // P0-P3 output (0), P4-P7 input (1) = 0xF0
     s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
     s_extI2C.write(PCA_REG_CONFIG);
-    s_extI2C.write(PCA_CONFIG_VALUE);  // 0xF0 = P0-P3 output, P4-P7 input
+    s_extI2C.write(PCA_CONFIG_VALUE);
     s_extI2C.endTransmission();
+    delay(5);
+
+    // KORAK 3: Verifikuj da je Configuration register pravilno postavljen
+    while (retries > 0) {
+        s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
+        s_extI2C.write(PCA_REG_CONFIG);
+        s_extI2C.endTransmission(false);  // Repeated start
+        s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
+        if (s_extI2C.available()) {
+            verify_val = s_extI2C.read();
+            if (verify_val == PCA_CONFIG_VALUE) {
+                LOG_DEBUG("[HAL] PCA9554 Configuration verified: 0x%02X", verify_val);
+                break;
+            }
+        }
+        retries--;
+        delay(2);
+    }
+
+    if (verify_val != PCA_CONFIG_VALUE) {
+        LOG_ERROR("[HAL] PCA9554 Configuration MISMATCH! Expected 0x%02X, got 0x%02X",
+                  PCA_CONFIG_VALUE, verify_val);
+    }
+
+    // KORAK 4: Postavi Output Port register na 0x00 (svi output pinovi OFF za ULN2003)
+    // ULN2003 open-collector: 0=transistor OFF, izlaz floats HIGH
+    s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
+    s_extI2C.write(PCA_REG_OUTPUT);
+    s_extI2C.write(0x00);
+    s_extI2C.endTransmission();
+    delay(5);
+    s_exp_output_state = 0x00;  // Sync local copy
 }
 
 // ============================================================================
@@ -213,15 +288,57 @@ static void expander_init(void)
         LOG_INFO("[HAL] PCA9554 I2C ACK OK at 0x%02X", EXPANDER_I2C_ADDR);
     }
 
-    // GLITCH-FREE SEKVENCA:
-    // KORAK 1: Postavi output latch na 0 (svi LOW)
-    // Pinovi su još uvijek INPUT (high-Z), tako da nema signala na vani
-    s_exp_output_state = 0x00;  // Svi izlazi LOW (releji OFF)
-    pca9554_write_output(s_exp_output_state);
-
-    // KORAK 2: Konfiguriraj smjer pinova (tek sada postaju OUTPUT)
+    // GLITCH-FREE SEKVENCA (ispravljen redoslijed):
+    // KORAK 1: PRVO — postaviti Configuration register (P0-P3 output, P4-P7 input)
+    // Trebalo je ovo raditi PRIJE nego pisanja Output registra!
+    // Trebam čitati datasheet sekvenciju inicijalizacije!
     pca9554_configure();
     s_exp_config = 1;
+    delay(5);
+
+    // KORAK 2: TEK SADA — Postavi Output Port register na 0x00 (svi LOW — releji OFF za ULN2003)
+    // ULN2003 open-collector: 0=transistor OFF, 1=transistor ON
+    s_exp_output_state = 0x00;  // Svi izlazi OFF (transistori OFF)
+    pca9554_write_output(s_exp_output_state);
+    delay(5);
+
+    // KORAK 3: Čitaj sve output pinove da se provjeri je li inicijalizacija bila uspješna
+    uint8_t outputs_read = pca9554_read_inputs();
+    LOG_DEBUG("[HAL] PCA9554 output read after init: 0x%02X (expect P4-P7 from inputs)", outputs_read);
+
+    // KORAK 4: DEBUG — Čitaj sve registre da se vidi stanje na chip-u
+    uint8_t reg_input = 0xFF, reg_output = 0, reg_polarity = 0, reg_config = 0;
+    
+    // Čitaj Input register (reg 0)
+    s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
+    s_extI2C.write(0x00);
+    s_extI2C.endTransmission(false);
+    s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
+    if (s_extI2C.available()) reg_input = s_extI2C.read();
+    
+    // Čitaj Output register (reg 1)
+    s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
+    s_extI2C.write(0x01);
+    s_extI2C.endTransmission(false);
+    s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
+    if (s_extI2C.available()) reg_output = s_extI2C.read();
+    
+    // Čitaj Polarity register (reg 2)
+    s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
+    s_extI2C.write(0x02);
+    s_extI2C.endTransmission(false);
+    s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
+    if (s_extI2C.available()) reg_polarity = s_extI2C.read();
+    
+    // Čitaj Config register (reg 3)
+    s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
+    s_extI2C.write(0x03);
+    s_extI2C.endTransmission(false);
+    s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
+    if (s_extI2C.available()) reg_config = s_extI2C.read();
+    
+    LOG_INFO("[HAL] PCA9554 REGISTERS: Input=0x%02X Output=0x%02X Polarity=0x%02X Config=0x%02X",
+             reg_input, reg_output, reg_polarity, reg_config);
 
     LOG_INFO("[HAL] PCA9554 OK — ✅ glitch-free inicijalizacija");
 #endif
@@ -238,7 +355,7 @@ void hal_relay_set(uint8_t relay_id, bool on)
     uint8_t bit = (1 << (relay_id - 1));  // relay 1→bit0, 2→bit1, 3→bit2
 
 #if EXPANDER_TYPE == EXPANDER_TYPE_PCF8574
-    // PCF8574AN: INVERZNA logika — 0=ON (active LOW), 1=OFF (HIGH-Z)
+    // PCF8574AN: open-drain, 1=OFF (high-Z), 0=ON (pulls LOW)
     if (on) {
         s_exp_output_state &= ~bit;  // 0 = relej ON
     } else {
@@ -246,11 +363,11 @@ void hal_relay_set(uint8_t relay_id, bool on)
     }
     pcf8574_write(s_exp_output_state);
 #else
-    // PCA9554ADH: DIREKTNA logika — 1=ON, 0=OFF
+    // PCA9554ADH + ULN2003 open-collector: 1=ON (transistor ON, izlaz LOW), 0=OFF (transistor OFF, izlaz HIGH)
     if (on) {
-        s_exp_output_state |= bit;   // 1 = relej ON
+        s_exp_output_state |= bit;   // 1 = relej ON (ULN2003 transistor ON)
     } else {
-        s_exp_output_state &= ~bit;  // 0 = relej OFF
+        s_exp_output_state &= ~bit;  // 0 = relej OFF (ULN2003 transistor OFF)
     }
     pca9554_write_output(s_exp_output_state);
 #endif
@@ -265,13 +382,15 @@ bool hal_relay_is_on(uint8_t relay_id)
     // PCF8574AN: 0 = ON (inverzna logika)
     return (s_exp_output_state & bit) == 0;
 #else
-    // PCA9554ADH: 1 = ON (direktna logika)
+    // PCA9554ADH + ULN2003: 1 = ON (direktna logika open-collector)
     return (s_exp_output_state & bit) != 0;
 #endif
 }
 
 void hal_relay_all_off(void)
 {
+    // PCF8574AN: 1 = OFF (all HIGH)
+    // PCA9554 + ULN2003: 0 = OFF (all LOW — transistori OFF, izlazi floats HIGH)
 #if EXPANDER_TYPE == EXPANDER_TYPE_PCF8574
     s_exp_output_state |= (RELAY1_BIT | RELAY2_BIT | RELAY3_BIT);  // Svi HIGH = OFF
     pcf8574_write(s_exp_output_state);

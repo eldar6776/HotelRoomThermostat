@@ -249,7 +249,6 @@ void hvac_update(void)
         s_window_open = window_now_open;
     }
     if (s_window_open && s_hvac_mode != HVAC_OFF) {
-        // Force HVAC off while window open — log only when relay actually needs shutting off
         bool any_on = hal_relay_is_on(1) || hal_relay_is_on(2) || hal_relay_is_on(3);
         if (any_on) {
             LOG_DEBUG("Window is open, forcing HVAC OFF");

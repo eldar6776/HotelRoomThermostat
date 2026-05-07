@@ -30,9 +30,7 @@ MB_REG_TARGET_TEMP = 0      # 40001
 MB_REG_HVAC_MODE = 1        # 40002
 MB_REG_FAN_SPEED = 2        # 40003
 MB_REG_RELAY_MODE = 21      # 40022 – 0=3-speed, 1=1-relay
-MB_REG_WX_WATCHDOG = 29     # 40030
-MB_REG_WX_BASE = 30         # 40031 – day-0 data start
-MB_HREG_COUNT = 48          # total holding registers (6 days × 3 + 30)
+MB_HREG_COUNT = 22          # total holding registers (0-21)
 
 # Input Registers (30001+, 0-based addressing)
 MB_IREG_CURRENT_TEMP = 0    # 30001
@@ -51,7 +49,6 @@ MB_COIL_MUR = 1             # 00002
 MB_ISTS_WINDOW_CLOSED = 0   # 10001
 MB_ISTS_SYSTEM_READY = 1    # 10002
 MB_ISTS_HVAC_ACTIVE = 2     # 10003
-MB_ISTS_WEATHER_VALID = 3   # 10004
 
 # Relay Mode values (MB_REG_RELAY_MODE)
 RELAY_3SPEED = 0   # 3-speed fan relay control
@@ -67,16 +64,6 @@ FAN_AUTO = 0
 FAN_LOW = 1
 FAN_MID = 2
 FAN_HIGH = 3
-
-# Weather Icon IDs (matching firmware WX_ICON_* definitions)
-WX_ICON_SUNNY = 0       # Clear sky / Sunny
-WX_ICON_PARTLY_CLR = 1  # Partly cloudy / Sunny day  
-WX_ICON_CLOUDY = 2      # Overcast / Cloudy
-WX_ICON_RAINY = 3       # Rain
-WX_ICON_SNOWY = 4       # Snow
-WX_ICON_STORMY = 5      # Thunderstorm
-WX_ICON_FOGGY = 6       # Fog / Mist
-WX_ICON_WINDY = 7       # Windy
 
 # ── Helper Functions ──────────────────────────────────────────────────────────
 def print_header(text):
@@ -264,14 +251,13 @@ def test_read_coils(client, slave_id, verbose=True):
 def test_read_discrete_inputs(client, slave_id, verbose=True):
     """Test reading discrete inputs"""
     if verbose:
-        print_header("TEST: Read Discrete Inputs (10001-10004)")
-    
-    inputs = safe_read_discrete_inputs(client, slave_id, MB_ISTS_WINDOW_CLOSED, 4)
+        print_header("TEST: Read Discrete Inputs (10001-10003)")
+
+    inputs = safe_read_discrete_inputs(client, slave_id, MB_ISTS_WINDOW_CLOSED, 3)
     if inputs:
         print_success(f"Window Sensor: {'CLOSED' if inputs[0] else 'OPEN'}")
         print_success(f"System Ready: {'YES' if inputs[1] else 'NO'}")
         print_success(f"HVAC Active: {'YES' if inputs[2] else 'NO'}")
-        print_success(f"Weather Valid: {'YES' if inputs[3] else 'NO'}")
         return True
     return False
 
@@ -378,77 +364,6 @@ def test_write_coils(client, slave_id, verbose=True):
     
     return True
 
-def test_weather_data_write(client, slave_id, verbose=True, cycle=0):
-    """Test writing weather forecast data with varying temperatures per cycle"""
-    if verbose:
-        print_header("TEST: Write Weather Forecast Data (6 days: Today + 5 forecast)")
-    
-    # Generate varying weather data for each cycle
-    # Base temperatures + cycle offset to ensure different data every time
-    base_temp = 20 + (cycle % 10)  # 20-29°C base
-    
-    # Write 6 days of weather data (3 registers per day) with different values per cycle
-    # Day 0 = Today (large icon), Days 1-5 = forecast cards
-    weather_data = [
-        # Day 0: TODAY (large icon) - Partly Cloudy
-        (0 | (WX_ICON_PARTLY_CLR << 8), 
-         base_temp * 10 + 50, base_temp * 10 - 20),
-        # Day 1: Monday - Sunny
-        (1 | (WX_ICON_SUNNY << 8), 
-         (base_temp + 3) * 10, (base_temp - 1) * 10),
-        # Day 2: Tuesday - Cloudy
-        (2 | (WX_ICON_CLOUDY << 8), 
-         (base_temp + 1) * 10, (base_temp - 3) * 10),
-        # Day 3: Wednesday - Rainy
-        (3 | (WX_ICON_RAINY << 8), 
-         (base_temp - 2) * 10, (base_temp - 5) * 10),
-        # Day 4: Thursday - Snowy
-        (4 | (WX_ICON_SNOWY << 8), 
-         (base_temp - 4) * 10, (base_temp - 8) * 10),
-        # Day 5: Friday - Stormy
-        (5 | (WX_ICON_STORMY << 8), 
-         (base_temp - 1) * 10, (base_temp - 4) * 10),
-    ]
-    
-    base_addr = MB_REG_WX_BASE
-    # Firmware DAY_NAMES: index 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-    day_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    icon_names = {
-        WX_ICON_SUNNY: "Sunny",
-        WX_ICON_PARTLY_CLR: "Partly Cloudy",
-        WX_ICON_CLOUDY: "Cloudy",
-        WX_ICON_RAINY: "Rainy",
-        WX_ICON_SNOWY: "Snowy",
-        WX_ICON_STORMY: "Stormy",
-        WX_ICON_FOGGY: "Foggy",
-        WX_ICON_WINDY: "Windy"
-    }
-    
-    # CRITICAL: Write ALL weather data FIRST (registers 30-47)
-    for day_idx, (packed, temp_high, temp_low) in enumerate(weather_data):
-        addr = base_addr + day_idx * 3
-        if not safe_write_register(client, slave_id, addr, packed):
-            return False
-        if not safe_write_register(client, slave_id, addr + 1, temp_high):
-            return False
-        if not safe_write_register(client, slave_id, addr + 2, temp_low):
-            return False
-        
-        day_id = packed & 0xFF
-        icon_id = (packed >> 8) & 0xFF
-        icon_name = icon_names.get(icon_id, f"Unknown({icon_id})")
-        day_name = day_labels[day_id] if day_id < len(day_labels) else f"day_id={day_id}"
-        label = ">>> TODAY <<<" if day_idx == 0 else f"Day {day_idx}"
-        print_success(f"{label} ({day_name}): {icon_name}, High {temp_high/10:.1f}°C, Low {temp_low/10:.1f}°C")
-    
-    # CRITICAL: Write watchdog trigger LAST (register 29)
-    # This triggers firmware callback to parse the data we just wrote above
-    if not safe_write_register(client, slave_id, MB_REG_WX_WATCHDOG, 1):
-        return False
-    print_info(f"Weather watchdog triggered (Cycle {cycle}) - Parsing complete")
-    
-    return True
-
 # ── Test Modes ────────────────────────────────────────────────────────────────
 def run_quick_test(client, slave_id):
     """Run quick single-cycle test"""
@@ -481,8 +396,6 @@ def run_quick_test(client, slave_id):
     test_write_relay_mode(client, slave_id, RELAY_3SPEED)
     time.sleep(0.5)
 
-    test_weather_data_write(client, slave_id, cycle=1)
-    
     print_header("Quick test completed successfully!")
 
 def run_cycle_test(client, slave_id, cycles):
@@ -534,10 +447,6 @@ def run_cycle_test(client, slave_id, cycles):
         test_write_relay_mode(client, slave_id, relay_modes[cycle % len(relay_modes)])
         time.sleep(0.5)
 
-        # Weather data write every cycle with varying data
-        test_weather_data_write(client, slave_id, cycle=cycle)
-        time.sleep(0.5)
-        
         print_success(f"Cycle {cycle}/{cycles} completed successfully!")
         if cycle < cycles:
             print_info("Pausing 1 second before next cycle...")
@@ -593,10 +502,6 @@ def run_continuous_test(client, slave_id, interval=2.0):
             test_write_relay_mode(client, slave_id, relay_modes[test_count % len(relay_modes)])
             time.sleep(0.5)
 
-            # Weather data write EVERY cycle with varying data
-            test_weather_data_write(client, slave_id, cycle=test_count)
-            time.sleep(0.5)
-            
             print_info(f"Waiting {interval} seconds before next cycle...")
             time.sleep(interval)
             
