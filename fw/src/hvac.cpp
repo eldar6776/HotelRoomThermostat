@@ -234,8 +234,16 @@ void hvac_update(void)
     if (s_setpoint > TEMP_SETPOINT_MAX) s_setpoint = TEMP_SETPOINT_MAX;
 
     // 1. Read NTC with EMA filter
-    int v_mv = read_ntc_mv();
-    float t = adc_to_celsius(v_mv);
+    int   raw_adc  = analogRead(PIN_NTC);
+    int   v_mv     = s_adc_cal_ok
+                         ? (int)esp_adc_cal_raw_to_voltage((uint32_t)raw_adc, &s_adc_chars)
+                         : (int)(raw_adc * 3100 / 4095);
+    float v_out    = v_mv / 1000.0f;
+    float v_cc     = NTC_VCC_MV / 1000.0f;
+    float r_ntc    = (v_out > 0.0f && v_out < v_cc)
+                         ? NTC_SERIES_R * v_out / (v_cc - v_out)
+                         : -1.0f;
+    float t        = adc_to_celsius(v_mv);
     if (t > -50.0f && t < 85.0f) {
         s_room_temp_ema = EMA_ALPHA * t + (1.0f - EMA_ALPHA) * s_room_temp_ema;
     }
@@ -330,6 +338,11 @@ void hvac_set_setpoint(int temp_c)
     
     s_auto_fan_init = false; // Resetuj izračun brzine čim korisnik zavrti arc slider
     modbus_set_target_temp((uint16_t)(temp_c * 10));
+
+    // Persist setpoint in NVS so it survives reboot
+    g_sys_cfg.target_temp = (int16_t)temp_c;
+    g_dirty_flags |= FLAG_TARGET_TEMP;
+    settings_save_dirty();
 }
 
 void hvac_set_mode(uint8_t mode)

@@ -17,7 +17,15 @@ extern "C" {
     void action_dnd_toggled(lv_event_t * e);
     void action_mur_toggled(lv_event_t * e);
     void settings3_loaded_cb(lv_event_t *e);
+    void ui_event_ArcTemp(lv_event_t * e);  // from ui_Thermostat.c
 }
+
+// Coil mirrors from modbus_handler
+extern bool g_mb_coil_dnd;
+extern bool g_mb_coil_mur;
+// Rename local shadows to use extern names
+#define s_mb_coil_dnd g_mb_coil_dnd
+#define s_mb_coil_mur g_mb_coil_mur
 
 // ── Timing constants ──────────────────────────────────────────────────────────
 #define HVAC_UPDATE_MS         500UL   // NTC read + relay logic period
@@ -74,6 +82,60 @@ static void update_hvac_icons(void)
         lv_obj_clear_flag(ui_ImageCoolStatus, LV_OBJ_FLAG_HIDDEN);
 }
 
+// ── Thermostat widget sync (Modbus → GUI) ────────────────────────────────────
+// Detects when Modbus registers change (master write or boot) and updates
+// Arc, fan label, and DND/MUR buttons. Called every HVAC_UPDATE_MS period.
+static uint16_t s_last_displayed_setpoint = 0xFFFF;  // sentinel: force first update
+static uint8_t  s_last_displayed_fan      = 0xFF;
+static bool     s_last_displayed_dnd      = false;
+static bool     s_last_displayed_mur      = false;
+
+static void update_thermostat_widgets(void)
+{
+    // ── Setpoint Arc & Label ──────────────────────────────────────────────────
+    uint16_t mb_setpoint_x10 = g_mb.hreg[MB_REG_TARGET_TEMP];
+    if (mb_setpoint_x10 != s_last_displayed_setpoint) {
+        s_last_displayed_setpoint = mb_setpoint_x10;
+        int sp = (int)(mb_setpoint_x10 / 10);
+        // Disable event temporarily to avoid arc change triggering hvac_set_setpoint
+        lv_obj_remove_event_cb(ui_ArcTemp, NULL);
+        lv_arc_set_value(ui_ArcTemp, sp);
+        lv_obj_add_event_cb(ui_ArcTemp, ui_event_ArcTemp, LV_EVENT_VALUE_CHANGED, NULL);
+        lv_label_set_text_fmt(ui_LabelTargetTemp, "%d°", sp);
+    }
+
+    // ── Fan Speed Label ───────────────────────────────────────────────────────
+    uint8_t mb_fan = (uint8_t)g_mb.hreg[MB_REG_FAN_SPEED];
+    if (mb_fan != s_last_displayed_fan) {
+        s_last_displayed_fan = mb_fan;
+        switch (mb_fan) {
+            case FAN_AUTO: lv_label_set_text(ui_LabelFanStatus, "Auto"); break;
+            case FAN_LOW:  lv_label_set_text(ui_LabelFanStatus, "Low");  break;
+            case FAN_MID:  lv_label_set_text(ui_LabelFanStatus, "Mid");  break;
+            case FAN_HIGH: lv_label_set_text(ui_LabelFanStatus, "High"); break;
+            default:       lv_label_set_text(ui_LabelFanStatus, "Auto"); break;
+        }
+    }
+
+    // ── DND / MUR Coils ───────────────────────────────────────────────────────
+    bool mb_dnd = s_mb_coil_dnd;
+    bool mb_mur = s_mb_coil_mur;
+    if (mb_dnd != s_last_displayed_dnd) {
+        s_last_displayed_dnd = mb_dnd;
+        if (mb_dnd)
+            lv_obj_add_state(ui_ButtonDnd, LV_STATE_CHECKED);
+        else
+            lv_obj_clear_state(ui_ButtonDnd, LV_STATE_CHECKED);
+    }
+    if (mb_mur != s_last_displayed_mur) {
+        s_last_displayed_mur = mb_mur;
+        if (mb_mur)
+            lv_obj_add_state(ui_ButtonMur, LV_STATE_CHECKED);
+        else
+            lv_obj_clear_state(ui_ButtonMur, LV_STATE_CHECKED);
+    }
+}
+
 // ── Outside temperature → UI ───────────────────────────────────────────────────
 // Placeholder for future weather integration
 static void update_outside_temp_label(void)
@@ -126,10 +188,14 @@ void setup(void)
     // 6. HVAC / thermostat logic (uses g_sys_cfg and g_mb)
     hvac_init();
 
-    // 7. Seed arc setpoint from NVS & set initial temps
+    // 7. Seed arc setpoint from NVS — use obj flag to suppress VALUE_CHANGED event
     int sp = g_mb.hreg[MB_REG_TARGET_TEMP] / 10;
-    lv_arc_set_value(ui_ArcTemp, sp);
+    lv_obj_remove_event_cb(ui_ArcTemp, NULL);  // detach all callbacks temporarily
+    lv_arc_set_value(ui_ArcTemp, sp);          // set value without triggering hvac_set_setpoint
+    lv_obj_add_event_cb(ui_ArcTemp, ui_event_ArcTemp, LV_EVENT_VALUE_CHANGED, NULL);  // re-attach
     lv_label_set_text_fmt(ui_LabelTargetTemp, "%d°", sp);
+    // Seed the mirror so update_thermostat_widgets() skips on first loop iteration
+    s_last_displayed_setpoint = (uint16_t)(sp * 10);
     
     // Set initial fan speed label from Modbus register
     uint8_t fan_speed = (uint8_t)g_mb.hreg[MB_REG_FAN_SPEED];
@@ -140,6 +206,7 @@ void setup(void)
         case FAN_HIGH: lv_label_set_text(ui_LabelFanStatus, "High"); break;
         default:       lv_label_set_text(ui_LabelFanStatus, "Auto"); break;
     }
+    s_last_displayed_fan = fan_speed;  // seed mirror
     
     // 9. Initialize Settings3 controls on first screen creation.
     // Screen-loaded callback is already attached in generated LVGL code.
@@ -168,6 +235,7 @@ void loop(void)
         hvac_update();
         update_temp_labels();
         update_hvac_icons();
+        update_thermostat_widgets();  // sync Modbus→GUI for setpoint, fan, DND/MUR
         // Update Modbus input registers with current system state
         modbus_update_inputs();
     }

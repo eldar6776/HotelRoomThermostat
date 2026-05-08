@@ -49,6 +49,10 @@ typedef struct {
 
 extern mb_data_t g_mb;
 
+// Coil mirrors — updated by modbus_handler when master writes coils
+extern bool g_mb_coil_dnd;
+extern bool g_mb_coil_mur;
+
 // ── Public API ───────────────────────────────────────────────────────────────
 #ifdef __cplusplus
 extern "C" {

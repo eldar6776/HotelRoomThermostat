@@ -15,13 +15,15 @@ typedef enum {
     FLAG_BRIGHT_HIGH   = (1 <<  7),
     FLAG_BRIGHT_LOW    = (1 <<  8),
     FLAG_TIMEOUT       = (1 <<  9),
-    FLAG_MODBUS_ADDR   = (1 << 10)
+    FLAG_MODBUS_ADDR   = (1 << 10),
+    FLAG_TARGET_TEMP   = (1 << 11)
 } settings_flag_t;
 
 // ── System configuration RAM structure ───────────────────────────────────────
 typedef struct {
     int16_t  temp_min;           // °C (default 16)
     int16_t  temp_max;           // °C (default 30)
+    int16_t  target_temp;        // °C setpoint (default 22)
     uint8_t  hvac_mode;          // 0=OFF,1=HEAT,2=COOL
     uint8_t  ctrl_type;          // 0=Thermostat,1=Manual
     int16_t  hysteresis_x10;     // ×10 e.g. 10 = 1.0 °C

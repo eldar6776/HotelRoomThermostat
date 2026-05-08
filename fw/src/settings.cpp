@@ -59,6 +59,7 @@ void settings_init(void)
     // Defaults
     g_sys_cfg.temp_min          = 16;
     g_sys_cfg.temp_max          = 30;
+    g_sys_cfg.target_temp       = 22;  // °C setpoint default
     g_sys_cfg.hvac_mode         = 0;
     g_sys_cfg.ctrl_type         = 0;
     g_sys_cfg.hysteresis_x10    = 10;   // 1.0 °C
@@ -74,6 +75,7 @@ void settings_init(void)
     s_prefs.begin(NVS_NS, false);
     g_sys_cfg.temp_min          = (int16_t) s_prefs.getInt("temp_min",           g_sys_cfg.temp_min);
     g_sys_cfg.temp_max          = (int16_t) s_prefs.getInt("temp_max",           g_sys_cfg.temp_max);
+    g_sys_cfg.target_temp       = (int16_t) s_prefs.getInt("target_temp",        g_sys_cfg.target_temp);
     g_sys_cfg.hvac_mode         = (uint8_t) s_prefs.getUInt("hvac_mode",         g_sys_cfg.hvac_mode);
     g_sys_cfg.ctrl_type         = (uint8_t) s_prefs.getUInt("ctrl_type",         g_sys_cfg.ctrl_type);
     g_sys_cfg.hysteresis_x10    = (int16_t) s_prefs.getInt("hyst_x10",           g_sys_cfg.hysteresis_x10);
@@ -88,6 +90,10 @@ void settings_init(void)
     // Clamp modbus address
     if (g_sys_cfg.modbus_addr < 1 || g_sys_cfg.modbus_addr > 247)
         g_sys_cfg.modbus_addr = 1;
+
+    // Clamp setpoint to valid range
+    if (g_sys_cfg.target_temp < 10) g_sys_cfg.target_temp = 10;
+    if (g_sys_cfg.target_temp > 40) g_sys_cfg.target_temp = 40;
 
     // Clamp inactivity timeout to supported UI values.
     if (!timeout_is_valid(g_sys_cfg.timeout_s)) {
@@ -111,6 +117,8 @@ void settings_save_dirty(void)
         s_prefs.putInt("temp_min",    g_sys_cfg.temp_min);
     if (g_dirty_flags & FLAG_TEMP_MAX)
         s_prefs.putInt("temp_max",    g_sys_cfg.temp_max);
+    if (g_dirty_flags & FLAG_TARGET_TEMP)
+        s_prefs.putInt("target_temp", g_sys_cfg.target_temp);
     if (g_dirty_flags & FLAG_HVAC_MODE)
         s_prefs.putUInt("hvac_mode",  g_sys_cfg.hvac_mode);
     if (g_dirty_flags & FLAG_CTRL_TYPE)

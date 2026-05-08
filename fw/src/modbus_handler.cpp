@@ -12,7 +12,27 @@ mb_data_t g_mb;
 
 static ModbusRTU s_mb;
 
+// Coil mirror — readable from main.cpp via extern
+bool g_mb_coil_dnd = false;
+bool g_mb_coil_mur = false;
+
 // ── Callbacks ────────────────────────────────────────────────────────────────
+
+// Called by the library on every coil write from the master.
+static uint16_t cb_coil_write(TRegister *reg, uint16_t val)
+{
+    uint16_t addr = reg->address.address;
+    bool state = (val != 0);
+    if (addr == MB_COIL_DND) {
+        g_mb_coil_dnd = state;
+        if (state) g_mb_coil_mur = false;  // mutual exclusion: DND ON → clear MUR
+    }
+    if (addr == MB_COIL_MUR) {
+        g_mb_coil_mur = state;
+        if (state) g_mb_coil_dnd = false;  // mutual exclusion: MUR ON → clear DND
+    }
+    return val;
+}
 
 // Called by the library on every holding-register write from the master.
 // Signature: uint16_t cb(TRegister* reg, uint16_t val)
@@ -55,10 +75,13 @@ void modbus_init(uint8_t slave_addr)
     // Register coils (DND/MUR)
     s_mb.addCoil(MB_COIL_DND, false, 2);
 
+    // Register coil write callback so GUI stays in sync when master writes
+    s_mb.onSetCoil(MB_COIL_DND, cb_coil_write, 2);
+
     // Pre-load default values
     // Load values from NVS settings where available, otherwise use defaults.
     // This ensures that settings persist after a restart.
-    g_mb.hreg[MB_REG_TARGET_TEMP] = 220; // Default setpoint 22.0°C, this is a runtime value
+    g_mb.hreg[MB_REG_TARGET_TEMP] = (uint16_t)(g_sys_cfg.target_temp * 10); // ✅ LOAD FROM NVS
     g_mb.hreg[MB_REG_HVAC_MODE]   = g_sys_cfg.hvac_mode; // ✅ LOAD FROM NVS
     g_mb.hreg[MB_REG_FAN_SPEED]   = FAN_AUTO; // Default fan speed
 
@@ -68,7 +91,7 @@ void modbus_init(uint8_t slave_addr)
         s_mb.Hreg(i, g_mb.hreg[i]);
     }
 
-    // Register write callback so we react to master writes
+    // Register write callbacks so we react to master writes
     s_mb.onSetHreg(0, cb_hreg_write, MB_HREG_COUNT);
 
     LOG_INFO("[MB]  Slave init, addr=%u (shared with Serial @115200)", slave_addr);
@@ -111,11 +134,13 @@ void modbus_set_fan_speed(uint8_t speed)
 
 void modbus_set_dnd_coil(bool state)
 {
+    g_mb_coil_dnd = state;
     s_mb.Coil(MB_COIL_DND, state);
 }
 
 void modbus_set_mur_coil(bool state)
 {
+    g_mb_coil_mur = state;
     s_mb.Coil(MB_COIL_MUR, state);
 }
 
