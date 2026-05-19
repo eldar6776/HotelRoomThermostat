@@ -13,6 +13,9 @@ static uint8_t   s_fan_speed     = FAN_AUTO;
 static uint8_t   s_auto_fan_stage = FAN_LOW;
 static bool      s_auto_fan_init  = false;
 static bool      s_window_open   = false;
+static bool      s_sensor_fault  = false;  // true = NTC senzor neispravan
+static uint8_t   s_bad_readings  = 0;      // uzastopna loša čitanja
+static uint8_t   s_good_readings = 0;      // uzastopna dobra čitanja (za recovery)
 
 // ── ADC kalibracija (ESP-IDF v4 esp_adc_cal) ───────────────────────────────
 static esp_adc_cal_characteristics_t s_adc_chars;
@@ -229,10 +232,6 @@ void hvac_update(void)
     s_hvac_mode  = new_mode;
     s_fan_speed  = new_fan;
 
-    // Osiguranje (Clamping) - ne dozvoli ekstremne vrijednosti iz vanjskih izvora
-    if (s_setpoint < TEMP_SETPOINT_MIN) s_setpoint = TEMP_SETPOINT_MIN;
-    if (s_setpoint > TEMP_SETPOINT_MAX) s_setpoint = TEMP_SETPOINT_MAX;
-
     // 1. Read NTC with EMA filter
     int   raw_adc  = analogRead(PIN_NTC);
     int   v_mv     = s_adc_cal_ok
@@ -244,8 +243,27 @@ void hvac_update(void)
                          ? NTC_SERIES_R * v_out / (v_cc - v_out)
                          : -1.0f;
     float t        = adc_to_celsius(v_mv);
-    if (t > -50.0f && t < 85.0f) {
+    bool   valid   = (t > -50.0f && t < 85.0f && r_ntc > 0.0f);
+
+    if (valid) {
+        s_bad_readings = 0;
+        s_good_readings++;
         s_room_temp_ema = EMA_ALPHA * t + (1.0f - EMA_ALPHA) * s_room_temp_ema;
+
+        if (s_sensor_fault && s_good_readings >= 3) {
+            s_sensor_fault = false;
+            LOG_INFO("[HVAC] Sensor fault CLEARED — %u good readings", s_good_readings);
+        }
+    } else {
+        s_good_readings = 0;
+        s_bad_readings++;
+
+        if (!s_sensor_fault && s_bad_readings >= 5) {
+            s_sensor_fault = true;
+            LOG_ERROR("[HVAC] Sensor FAULT detected — %u bad readings, t=%.1f, r_ntc=%.0f",
+                      s_bad_readings, t, r_ntc);
+            relay_set_target(0);
+        }
     }
 
     // 2. Window sensor (Active LOW — read via I2C expander)
@@ -262,6 +280,11 @@ void hvac_update(void)
             LOG_DEBUG("Window is open, forcing HVAC OFF");
         }
         relay_set_target(0);
+        return;
+    }
+
+    // 2b. Sensor fault — safe-off, no thermostat logic while faulty
+    if (s_sensor_fault) {
         return;
     }
 
@@ -319,6 +342,13 @@ void hvac_update(void)
         hal_relay_sync();
     }
 
+    // Safety: Check for relay fault and enter safe-off state
+    if (hal_relay_has_fault()) {
+        LOG_ERROR("[HVAC] Relay FAULT detected — forcing safe-off");
+        relay_set_target(0);
+        return;
+    }
+
     if (want_on != any_on || (want_on && desired_relay != active_relay)) {
         LOG_DEBUG("HVAC state change: current_relay=%d, desired_relay=%d", active_relay, desired_relay);
         relay_set_target(desired_relay);
@@ -328,6 +358,7 @@ void hvac_update(void)
 // ── Getters ──────────────────────────────────────────────────────────────────
 float hvac_get_room_temp(void)  { return s_room_temp_ema; }
 bool  hvac_is_window_open(void) { return s_window_open; }
+bool  hvac_temp_sensor_fault(void) { return s_sensor_fault; }
 
 // ── Setters (called from UI callbacks) ───────────────────────────────────────
 void hvac_set_setpoint(int temp_c)

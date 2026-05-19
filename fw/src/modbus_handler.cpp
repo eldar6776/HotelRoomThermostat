@@ -39,14 +39,27 @@ static uint16_t cb_coil_write(TRegister *reg, uint16_t val)
 // Return val to accept it unchanged, or return a different value to override.
 static uint16_t cb_hreg_write(TRegister *reg, uint16_t val)
 {
-    // Always sync g_mb mirror when master writes
     uint16_t reg_index = reg->address.address;
-    g_mb.hreg[reg_index] = val;
     
-    // NO LOG HERE - would interfere with Modbus response timing on shared Serial!
-    // LOG_INFO("[MB] Master write: hreg[%u] = %u", reg_index, val);
-
-    return val;   // accept the written value
+    switch (reg_index) {
+        case MB_REG_TARGET_TEMP:
+            val = constrain(val, TEMP_SETPOINT_MIN * 10, TEMP_SETPOINT_MAX * 10);
+            break;
+        case MB_REG_HVAC_MODE:
+            if (val > HVAC_COOL) val = HVAC_OFF;
+            break;
+        case MB_REG_FAN_SPEED:
+            if (val > FAN_HIGH) val = FAN_AUTO;
+            break;
+        case MB_REG_RELAY_MODE:
+            if (val > 1) val = 0;
+            break;
+        default:
+            break;
+    }
+    
+    g_mb.hreg[reg_index] = val;
+    return val;
 }
 
 // ── modbus_init ───────────────────────────────────────────────────────────────
@@ -183,6 +196,11 @@ void modbus_update_inputs(void)
     g_mb.ireg[MB_IREG_WINDOW_RAW] = window_closed ? 1 : 0;
     s_mb.Ireg(MB_IREG_WINDOW_RAW, g_mb.ireg[MB_IREG_WINDOW_RAW]);
 
+    // Input Register 7: Temperature sensor fault (1=fault, 0=ok)
+    bool sensor_fault = hvac_temp_sensor_fault();
+    g_mb.ireg[MB_IREG_SENSOR_FAULT] = sensor_fault ? 1 : 0;
+    s_mb.Ireg(MB_IREG_SENSOR_FAULT, g_mb.ireg[MB_IREG_SENSOR_FAULT]);
+
     // Discrete Input 0: Window closed
     s_mb.Ists(MB_ISTS_WINDOW_CLOSED, window_closed);
 
@@ -192,6 +210,9 @@ void modbus_update_inputs(void)
     // Discrete Input 2: HVAC active (any relay on)
     bool hvac_active = (relay_bits != 0);
     s_mb.Ists(MB_ISTS_HVAC_ACTIVE, hvac_active);
+
+    // Discrete Input 3: Temperature sensor fault alarm
+    s_mb.Ists(MB_ISTS_SENSOR_FAULT, sensor_fault);
 }
 
 // ── Getter functions ──────────────────────────────────────────────────────────

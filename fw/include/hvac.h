@@ -27,6 +27,7 @@ void hvac_update(void);               // call every loop() iteration
 
 float hvac_get_room_temp(void);       // current measured temp (°C)
 bool  hvac_is_window_open(void);
+bool  hvac_temp_sensor_fault(void);   // true = senzor neispravan
 
 // Called from UI callbacks
 void hvac_set_setpoint(int temp_c);   // clamps to [10..40]

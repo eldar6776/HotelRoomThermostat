@@ -20,13 +20,15 @@
 #define MB_IREG_UPTIME_HIGH   4  // 30005 – uptime seconds (high word)
 #define MB_IREG_FREE_HEAP     5  // 30006 – free heap in KB
 #define MB_IREG_WINDOW_RAW    6  // 30007 – window sensor raw (0=open,1=closed)
-#define MB_IREG_COUNT         7  // total input registers
+#define MB_IREG_SENSOR_FAULT  7  // 30008 – temp sensor fault (1=fault,0=ok)
+#define MB_IREG_COUNT         8  // total input registers
 
 // ── Discrete Inputs (read-only bits, 10001+) ────────────────────────────────
 #define MB_ISTS_WINDOW_CLOSED 0  // 10001 – window sensor (1=closed,0=open)
 #define MB_ISTS_SYSTEM_READY  1  // 10002 – system initialized
 #define MB_ISTS_HVAC_ACTIVE   2  // 10003 – HVAC relay firing
-#define MB_ISTS_COUNT         3  // total discrete inputs
+#define MB_ISTS_SENSOR_FAULT  3  // 10004 – temp sensor fault alarm
+#define MB_ISTS_COUNT         4  // total discrete inputs
 
 // HVAC mode values
 #define HVAC_OFF   0

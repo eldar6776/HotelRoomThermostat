@@ -65,6 +65,8 @@ void hal_backlight_set(uint16_t level);  // 0-1023 input (auto-maps to 0-255)
 // Relej kontrola: relay_id = 1, 2, 3
 void hal_relay_set(uint8_t relay_id, bool on);
 bool hal_relay_is_on(uint8_t relay_id);
+bool hal_relay_verify_on(uint8_t relay_id);  // čita hardverske pinove
+bool hal_relay_has_fault(void);               // mismatch softver/hardver
 void hal_relay_all_off(void);
 void hal_relay_sync(void); // Forsira pisanje trenutnog stanja na expander
 

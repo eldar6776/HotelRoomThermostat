@@ -44,6 +44,7 @@ static TwoWire s_extI2C(1);
 // ⚠️ INICIJALNO: 0x00 = svi biti su 0 = svi releji OFF (ulaz LOW na ULN2003)
 static uint8_t s_exp_output_state = 0x00;  // Trenutni output latch — svi releji OFF
 static uint8_t s_exp_config       = 0x00;  // 0=PCF8574AN, 1=PCA9554ADH
+static bool    s_relay_fault      = false; // true = mismatch softver/hardver
 
 // ── PCF8574AN registeri ──────────────────────────────────────────────────────
 // PCF8574AN ima samo jedan register — read mijenja pinove u input mode
@@ -110,7 +111,8 @@ static uint8_t pcf8574_read(void)
 }
 
 // ── PCA9554ADH — Pisanje output registera sa verifikacijom ────────────────────
-static void pca9554_write_output(uint8_t value)
+// Vraća true ako je write uspješan, false ako je I2C greška detektovana
+static bool pca9554_write_output(uint8_t value)
 {
     uint8_t i2c_err = 0;
     static uint8_t s_last_diag_value = 0xFF;
@@ -123,7 +125,7 @@ static void pca9554_write_output(uint8_t value)
     
     if (i2c_err != 0) {
         LOG_ERROR("[HAL] pca9554_write_output FAILED! value=0x%02X, I2C err=%d", value, i2c_err);
-        return;
+        return false;
     }
     
     // KORAK 2: Čitaj Output register da se verificira što je napisano
@@ -134,7 +136,7 @@ static void pca9554_write_output(uint8_t value)
     
     if (i2c_err != 0) {
         LOG_ERROR("[HAL] pca9554_write_output: read verify failed, err=%d", i2c_err);
-        return;
+        return false;
     }
     
     s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
@@ -145,7 +147,7 @@ static void pca9554_write_output(uint8_t value)
         }
     } else {
         LOG_ERROR("[HAL] pca9554_write_output: no read response");
-        return;
+        return false;
     }
 
     // KORAK 3: dijagnostika stvarnog nivoa pinova i trenutne konfiguracije.
@@ -157,14 +159,14 @@ static void pca9554_write_output(uint8_t value)
     i2c_err = s_extI2C.endTransmission(false);
     if (i2c_err != 0) {
         LOG_ERROR("[HAL] pca9554_write_output: config read failed, err=%d", i2c_err);
-        return;
+        return false;
     }
     s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
     if (s_extI2C.available()) {
         cfg = s_extI2C.read();
     } else {
         LOG_ERROR("[HAL] pca9554_write_output: no config response");
-        return;
+        return false;
     }
 
     s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
@@ -172,14 +174,14 @@ static void pca9554_write_output(uint8_t value)
     i2c_err = s_extI2C.endTransmission(false);
     if (i2c_err != 0) {
         LOG_ERROR("[HAL] pca9554_write_output: input read failed, err=%d", i2c_err);
-        return;
+        return false;
     }
     s_extI2C.requestFrom(EXPANDER_I2C_ADDR, 1);
     if (s_extI2C.available()) {
         pins = s_extI2C.read();
     } else {
         LOG_ERROR("[HAL] pca9554_write_output: no input response");
-        return;
+        return false;
     }
 
     uint8_t output_mask = (RELAY1_BIT | RELAY2_BIT | RELAY3_BIT | (1 << EXP_PIN_RESERVE_OUT));
@@ -196,6 +198,8 @@ static void pca9554_write_output(uint8_t value)
     if (bad_mask != 0) {
         LOG_ERROR("[HAL] PCA9554 output pin-level mismatch (expected HIGH not seen) mask=0x%02X", bad_mask);
     }
+
+    return true;
 }
 
 // ── PCA9554ADH — Čitanje input registera s error handling ─────────────────────
@@ -413,12 +417,20 @@ void hal_relay_set(uint8_t relay_id, bool on)
     pcf8574_write(s_exp_output_state);
 #else
     // PCA9554ADH + ULN2003 open-collector: 1=ON (transistor ON, izlaz LOW), 0=OFF (transistor OFF, izlaz HIGH)
+    uint8_t new_state = s_exp_output_state;
     if (on) {
-        s_exp_output_state |= bit;   // 1 = relej ON (ULN2003 transistor ON)
+        new_state |= bit;   // 1 = relej ON (ULN2003 transistor ON)
     } else {
-        s_exp_output_state &= ~bit;  // 0 = relej OFF (ULN2003 transistor OFF)
+        new_state &= ~bit;  // 0 = relej OFF (ULN2003 transistor OFF)
     }
-    pca9554_write_output(s_exp_output_state);
+    bool ok = pca9554_write_output(new_state);
+    if (ok) {
+        s_exp_output_state = new_state;
+        s_relay_fault = false;
+    } else {
+        s_relay_fault = true;
+        LOG_ERROR("[HAL] Relay %d write FAILED — fault flag set", relay_id);
+    }
 #endif
 }
 
@@ -436,6 +448,28 @@ bool hal_relay_is_on(uint8_t relay_id)
 #endif
 }
 
+bool hal_relay_verify_on(uint8_t relay_id)
+{
+    if (relay_id < 1 || relay_id > 3) return false;
+    uint8_t bit = (1 << (relay_id - 1));
+
+#if EXPANDER_TYPE == EXPANDER_TYPE_PCF8574
+    uint8_t inputs = pcf8574_read();
+    // PCF8574AN: 0 = ON (inverzna logika)
+    return (inputs & bit) == 0;
+#else
+    // PCA9554: čitamo input register — output pinovi se vide kao njihovi stvarni nivoi
+    uint8_t inputs = pca9554_read_inputs();
+    // PCA9554 + ULN2003: 1 = ON (ULN2003 transistor ON → izlaz LOW, ali expander pin HIGH)
+    return (inputs & bit) != 0;
+#endif
+}
+
+bool hal_relay_has_fault(void)
+{
+    return s_relay_fault;
+}
+
 void hal_relay_all_off(void)
 {
     // PCF8574AN: 1 = OFF (all HIGH)
@@ -444,8 +478,15 @@ void hal_relay_all_off(void)
     s_exp_output_state |= (RELAY1_BIT | RELAY2_BIT | RELAY3_BIT);  // Svi HIGH = OFF
     pcf8574_write(s_exp_output_state);
 #else
-    s_exp_output_state &= ~(RELAY1_BIT | RELAY2_BIT | RELAY3_BIT);  // Svi LOW = OFF
-    pca9554_write_output(s_exp_output_state);
+    uint8_t new_state = s_exp_output_state & ~(RELAY1_BIT | RELAY2_BIT | RELAY3_BIT);
+    bool ok = pca9554_write_output(new_state);
+    if (ok) {
+        s_exp_output_state = new_state;
+        s_relay_fault = false;
+    } else {
+        s_relay_fault = true;
+        LOG_ERROR("[HAL] Relay all_off FAILED — fault flag set");
+    }
 #endif
 }
 
@@ -456,7 +497,13 @@ void hal_relay_sync(void)
 #if EXPANDER_TYPE == EXPANDER_TYPE_PCF8574
     pcf8574_write(s_exp_output_state);
 #else
-    pca9554_write_output(s_exp_output_state);
+    bool ok = pca9554_write_output(s_exp_output_state);
+    if (ok) {
+        s_relay_fault = false;
+    } else {
+        s_relay_fault = true;
+        LOG_ERROR("[HAL] Relay sync FAILED — fault flag set");
+    }
 #endif
 }
 
