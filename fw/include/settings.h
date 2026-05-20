@@ -48,7 +48,9 @@ extern bool          g_wifi_ap_active;
 extern "C" {
 #endif
 void settings_init(void);               // load from NVS
-void settings_save_dirty(void);         // write only dirty fields → NVS
+void settings_save_dirty(void);         // write only dirty fields → NVS (immediate)
+void settings_schedule_save(void);      // schedule NVS write 3 s after last call
+void settings_tick(void);               // call from main loop — fires deferred save
 void settings_reset_dirty(void);
 
 void inactivity_reset(void);            // call on any touch event

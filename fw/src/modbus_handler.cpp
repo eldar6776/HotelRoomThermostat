@@ -25,11 +25,17 @@ static uint16_t cb_coil_write(TRegister *reg, uint16_t val)
     bool state = (val != 0);
     if (addr == MB_COIL_DND) {
         g_mb_coil_dnd = state;
-        if (state) g_mb_coil_mur = false;  // mutual exclusion: DND ON → clear MUR
+        if (state) {
+            g_mb_coil_mur = false;
+            s_mb.Coil(MB_COIL_MUR, false);  // sync library register — master reads correct state
+        }
     }
     if (addr == MB_COIL_MUR) {
         g_mb_coil_mur = state;
-        if (state) g_mb_coil_dnd = false;  // mutual exclusion: MUR ON → clear DND
+        if (state) {
+            g_mb_coil_dnd = false;
+            s_mb.Coil(MB_COIL_DND, false);  // sync library register — master reads correct state
+        }
     }
     return val;
 }
@@ -155,6 +161,13 @@ void modbus_set_mur_coil(bool state)
 {
     g_mb_coil_mur = state;
     s_mb.Coil(MB_COIL_MUR, state);
+}
+
+void modbus_set_slave_addr(uint8_t addr)
+{
+    if (addr < 1 || addr > 247) return;
+    s_mb.slave(addr);
+    LOG_INFO("[MB] Slave address changed to %u", addr);
 }
 
 // ── modbus_update_inputs ──────────────────────────────────────────────────────

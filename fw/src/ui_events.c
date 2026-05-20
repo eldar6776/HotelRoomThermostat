@@ -412,6 +412,7 @@ void action_save_and_exit(lv_event_t *e)
 {
     (void)e;
     settings_save_dirty();
+    modbus_set_slave_addr(g_sys_cfg.modbus_addr);  // apply new address immediately
     inactivity_set_on_settings(false);
     _ui_screen_change(&ui_Main, LV_SCR_LOAD_ANIM_FADE_ON,
                       500, 0, &ui_Main_screen_init);

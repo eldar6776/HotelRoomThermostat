@@ -1,6 +1,7 @@
 #include "settings.h"
 #include <Preferences.h>
 #include "debug_logger.h"
+#include "hvac.h"
 #include <lvgl.h>
 
 // Forward declare ui_Main for screen-change use in inactivity callback
@@ -18,10 +19,14 @@ sys_config_t g_sys_cfg;
 uint32_t     g_dirty_flags  = 0;
 bool         g_wifi_ap_active = false;
 
-static Preferences s_prefs;
-static bool        s_on_settings = false;
+static Preferences   s_prefs;
+static bool          s_on_settings = false;
 static unsigned long s_last_touch_ms = 0;
-static bool        s_screensaver_active = false;
+static bool          s_screensaver_active = false;
+
+// ── Delayed-save state ────────────────────────────────────────────────────────
+static bool          s_save_scheduled   = false;
+static unsigned long s_save_deadline_ms = 0;
 
 static bool timeout_is_valid(uint8_t t)
 {
@@ -31,8 +36,6 @@ static bool timeout_is_valid(uint8_t t)
 static void inactivity_apply_screensaver(void)
 {
     s_screensaver_active = true;
-    // Dim display on timeout, then return to Main from any screen.
-    hal_backlight_set(g_sys_cfg.bright_low);
 
     lv_obj_t *active = lv_scr_act();
     bool on_settings_screen =
@@ -41,9 +44,20 @@ static void inactivity_apply_screensaver(void)
         (active == ui_Settings3);
 
     if (on_settings_screen || s_on_settings) {
-        settings_reset_dirty();  // discard unsaved settings edits
+        // Reload g_sys_cfg from NVS so that RAM reflects only committed values.
+        // Without this, partially edited settings remain active until power-cycle.
+        settings_init();
+        settings_reset_dirty();  // cancel any pending scheduled save
+        // Sync the HVAC operating mode back to the NVS value.  hvac_update()
+        // runs from the Modbus register, not g_sys_cfg, so the register must
+        // also be restored.
+        hvac_set_mode(g_sys_cfg.hvac_mode);
         s_on_settings = false;
     }
+
+    // Dim display — g_sys_cfg.bright_low is now the NVS value if settings
+    // were discarded above, or the committed value otherwise.
+    hal_backlight_set(g_sys_cfg.bright_low);
 
     if (active != ui_Main) {
         _ui_screen_change(&ui_Main, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_Main_screen_init);
@@ -145,7 +159,28 @@ void settings_save_dirty(void)
 
 void settings_reset_dirty(void)
 {
-    g_dirty_flags = 0;
+    g_dirty_flags      = 0;
+    s_save_scheduled   = false;
+}
+
+// ── settings_schedule_save ────────────────────────────────────────────────────
+// Schedule an NVS write 3 s after the last call.  Subsequent calls within the
+// window simply push the deadline forward — only one commit per interaction.
+void settings_schedule_save(void)
+{
+    s_save_scheduled   = true;
+    s_save_deadline_ms = millis() + 3000UL;
+}
+
+// ── settings_tick ─────────────────────────────────────────────────────────────
+// Must be called from the main loop.  Fires the deferred NVS write once the
+// 3-second idle window has elapsed.
+void settings_tick(void)
+{
+    if (s_save_scheduled && (millis() >= s_save_deadline_ms)) {
+        s_save_scheduled = false;
+        settings_save_dirty();
+    }
 }
 
 // ── Inactivity timeout ────────────────────────────────────────────────────────

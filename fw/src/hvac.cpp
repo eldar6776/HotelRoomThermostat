@@ -60,7 +60,12 @@ static void relay_set_target(uint8_t relay_id)
     // Turn all relays OFF first (via I2C expander adapter API)
     hal_relay_all_off();
 
-    if (relay_id == 0) return;   // all off
+    if (relay_id == 0) {
+        // Clear pending deadband — prevents old relay from re-activating later
+        s_db_state        = DB_IDLE;
+        s_db_target_relay = 0;
+        return;
+    }
 
     // Start deadband timer
     s_db_state        = DB_WAITING;
@@ -288,14 +293,11 @@ void hvac_update(void)
         return;
     }
 
-    // 3. Deadband service
+    // 3. Deadband guard — thermostat logic is blocked while a relay switch is
+    //    in progress.  hvac_deadband_tick() (called every loop() iteration)
+    //    fires the target relay once RELAY_DEADBAND_MS has elapsed.
     if (s_db_state == DB_WAITING) {
-        if ((millis() - s_db_start_ms) >= RELAY_DEADBAND_MS) {
-            relay_apply_direct(s_db_target_relay);
-            LOG_DEBUG("Deadband finished, relay %d is ON", s_db_target_relay);
-            s_db_state = DB_IDLE;
-        }
-        return;  // wait for deadband to expire
+        return;
     }
 
     // 4. Thermostat logic (simple hysteresis from settings)
@@ -357,8 +359,22 @@ void hvac_update(void)
 
 // ── Getters ──────────────────────────────────────────────────────────────────
 float hvac_get_room_temp(void)  { return s_room_temp_ema; }
-bool  hvac_is_window_open(void) { return s_window_open; }
+bool  hvac_is_window_open(void)    { return s_window_open; }
 bool  hvac_temp_sensor_fault(void) { return s_sensor_fault; }
+
+// ── hvac_deadband_tick ────────────────────────────────────────────────────────
+// Must be called every loop() iteration.  Fires the pending relay exactly
+// RELAY_DEADBAND_MS after the switch request — independently of the 500 ms
+// hvac_update() period so the constant actually means what it says.
+void hvac_deadband_tick(void)
+{
+    if (s_db_state != DB_WAITING) return;
+    if ((millis() - s_db_start_ms) >= RELAY_DEADBAND_MS) {
+        relay_apply_direct(s_db_target_relay);
+        LOG_DEBUG("Deadband finished, relay %d is ON", s_db_target_relay);
+        s_db_state = DB_IDLE;
+    }
+}
 
 // ── Setters (called from UI callbacks) ───────────────────────────────────────
 void hvac_set_setpoint(int temp_c)
@@ -370,10 +386,10 @@ void hvac_set_setpoint(int temp_c)
     s_auto_fan_init = false; // Resetuj izračun brzine čim korisnik zavrti arc slider
     modbus_set_target_temp((uint16_t)(temp_c * 10));
 
-    // Persist setpoint in NVS so it survives reboot
+    // Mark setpoint dirty — actual NVS write deferred 3 s to protect Flash
     g_sys_cfg.target_temp = (int16_t)temp_c;
     g_dirty_flags |= FLAG_TARGET_TEMP;
-    settings_save_dirty();
+    settings_schedule_save();
 }
 
 void hvac_set_mode(uint8_t mode)

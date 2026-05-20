@@ -93,12 +93,16 @@ static bool     s_last_displayed_mur      = false;
 static void update_thermostat_widgets(void)
 {
     // ── Setpoint Arc & Label ──────────────────────────────────────────────────
+    // Skip Modbus override while the user is actively dragging the arc.
+    // LV_STATE_PRESSED is set by LVGL for the entire duration of the touch.
     uint16_t mb_setpoint_x10 = g_mb.hreg[MB_REG_TARGET_TEMP];
-    if (mb_setpoint_x10 != s_last_displayed_setpoint) {
+    if (!lv_obj_has_state(ui_ArcTemp, LV_STATE_PRESSED) &&
+        mb_setpoint_x10 != s_last_displayed_setpoint) {
         s_last_displayed_setpoint = mb_setpoint_x10;
         int sp = (int)(mb_setpoint_x10 / 10);
-        // Disable event temporarily to avoid arc change triggering hvac_set_setpoint
-        lv_obj_remove_event_cb(ui_ArcTemp, NULL);
+        // Remove only our specific callback to avoid silently discarding any
+        // future callbacks registered on this object.
+        lv_obj_remove_event_cb(ui_ArcTemp, ui_event_ArcTemp);
         lv_arc_set_value(ui_ArcTemp, sp);
         lv_obj_add_event_cb(ui_ArcTemp, ui_event_ArcTemp, LV_EVENT_VALUE_CHANGED, NULL);
         lv_label_set_text_fmt(ui_LabelTargetTemp, "%d°", sp);
@@ -223,6 +227,9 @@ void loop(void)
 {
     unsigned long now = millis();
 
+    // Deadband relay timer — runs every loop() for accurate RELAY_DEADBAND_MS timing
+    hvac_deadband_tick();
+
     // LVGL task handler (must be called frequently)
     lv_timer_handler();
 
@@ -251,6 +258,9 @@ void loop(void)
         t_inact = now;
         inactivity_check();
     }
+
+    // Deferred NVS save — fires once, 3 s after the last settings change
+    settings_tick();
 
     // Small yield to prevent WDT reset
     delay(2);

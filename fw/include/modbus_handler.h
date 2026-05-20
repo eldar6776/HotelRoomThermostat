@@ -71,6 +71,7 @@ void modbus_set_relay_mode(uint8_t mode);
 void modbus_set_fan_speed(uint8_t speed);
 void modbus_set_dnd_coil(bool state);
 void modbus_set_mur_coil(bool state);
+void modbus_set_slave_addr(uint8_t addr);  // apply new address without restart
 
 // Getters for read-only status (returns from g_mb.ireg mirror)
 uint16_t modbus_get_current_temp(void);   // returns temperature x10

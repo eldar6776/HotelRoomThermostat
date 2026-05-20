@@ -23,7 +23,8 @@
 extern "C" {
 #endif
 void hvac_init(void);
-void hvac_update(void);               // call every loop() iteration
+void hvac_update(void);               // call every HVAC_UPDATE_MS (500 ms)
+void hvac_deadband_tick(void);        // call every loop() — fires relay after 100 ms deadband
 
 float hvac_get_room_temp(void);       // current measured temp (°C)
 bool  hvac_is_window_open(void);
