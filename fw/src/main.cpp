@@ -36,6 +36,9 @@ extern bool g_mb_coil_mur;
 #define CLOCK_UPDATE_MS       1000UL   // clock label refresh period
 #define INACTIVITY_CHECK_MS   1000UL   // inactivity poll period
 
+// Timezone constant for Sarajevo (CET/CEST with DST transitions)
+#define SARAJEVO_TZ "CET-1CEST,M3.5.0,M10.5.0/3"
+
 // ── Timestamps ────────────────────────────────────────────────────────────────
 static unsigned long t_hvac      = 0;
 static unsigned long t_clock     = 0;
@@ -47,7 +50,7 @@ static bool s_is_clock_set = false;
 static unsigned long s_last_sync_ms = 0;
 static bool s_initial_sync_pending = true;
 
-void on_time_synced(const char* source) {
+extern "C" void on_time_synced(const char* source) {
     s_is_clock_set = true;
     s_last_sync_ms = millis();
     s_initial_sync_pending = false; // No need for initial sync anymore
@@ -92,7 +95,7 @@ void try_ntp_sync() {
     }
     LOG_INFO("[NTP] WiFi connected: %s", WiFi.localIP().toString().c_str());
 
-    configTime(3600, 0, "pool.ntp.org", "time.nist.gov");
+    configTzTime(SARAJEVO_TZ, "pool.ntp.org", "time.nist.gov");
     
     unsigned long ntp_start = millis();
     while (time(nullptr) < 1672531200) { // Check if time is later than 2023-01-01

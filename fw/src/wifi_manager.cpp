@@ -11,49 +11,13 @@ extern lv_obj_t *ui_SwitchStartAp;
 static WiFiManager wm;
 static bool s_portal_running = false;
 
-// Custom HTML for OTA update, integrated into WiFiManager
-const char* ota_html =
-"<form method='POST' action='/update' enctype='multipart/form-data' style='font-family:sans-serif; text-align:center; margin-top:20px;'>"
-"<h3>Thermostat OTA Update</h3>"
-"<input type='file' name='update' accept='.bin' style='margin: 10px;'><br>"
-"<input type='submit' value='Pokreni Update' style='padding: 10px 20px; font-size: 16px;'>"
-"</form><hr>";
-
-// Web server callback to safely register /update route once WebServer is created
-static void bindServerCallback() {
-    if (!wm.server) return;
-    
-    wm.server->on("/update", HTTP_POST, []() {
-        wm.server->sendHeader("Connection", "close");
-        wm.server->send(200, "text/plain", (Update.hasError()) ? "GRESKA!" : "OK! Restart...");
-        delay(1000);
-        ESP.restart();
-    }, []() {
-        HTTPUpload& upload = wm.server->upload();
-        if (upload.status == UPLOAD_FILE_START) {
-            LOG_INFO("OTA Update Počeo: %s", upload.filename.c_str());
-            if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
-                Update.printError(Serial);
-            }
-        } else if (upload.status == UPLOAD_FILE_WRITE) {
-            if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-                Update.printError(Serial);
-            }
-        } else if (upload.status == UPLOAD_FILE_END) {
-            if (Update.end(true)) {
-                LOG_INFO("OTA Update Završen: %u bajtova", upload.totalSize);
-            } else {
-                Update.printError(Serial);
-            }
-        }
-    });
-}
-
 void wifi_manager_init() {
     wm.setConnectTimeout(20);
     wm.setConfigPortalTimeout(180); // 3 minutes
-    wm.setCustomHeadElement(ota_html);
-    wm.setWebServerCallback(bindServerCallback);
+    
+    // Configure WiFiManager menu to include the built-in firmware Update option
+    std::vector<const char *> menu = {"wifi", "info", "param", "close", "sep", "update"};
+    wm.setMenu(menu);
 }
 
 static void wifi_manager_stop_portal() {
