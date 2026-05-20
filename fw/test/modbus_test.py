@@ -30,6 +30,8 @@ MB_REG_TARGET_TEMP = 0
 MB_REG_HVAC_MODE = 1
 MB_REG_FAN_SPEED = 2
 MB_REG_OUTSIDE_TEMP = 3
+MB_REG_UNIX_TIME_L = 4
+MB_REG_UNIX_TIME_H = 5
 MB_REG_RELAY_MODE = 21
 
 # Input Registers (30001+, 0-based)
@@ -115,12 +117,16 @@ def write_reg(client, slave_id, address, value):
 def write_coil(client, slave_id, address, value):
     return client.write_coil(address=address, value=value, device_id=slave_id)
 
+@retry_modbus
+def write_regs(client, slave_id, address, values):
+    return client.write_registers(address=address, values=values, device_id=slave_id)
+
 # ── Test Block Functions ──────────────────────────────────────────────────────
 def do_read_state(client, slave_id, verbose=True):
     """Kombinovano čitanje kompletnog stanja termostata"""
     if verbose: print_header("READING FULL THERMOSTAT STATE")
     
-    hregs = read_hregs(client, slave_id, MB_REG_TARGET_TEMP, 4)
+    hregs = read_hregs(client, slave_id, MB_REG_TARGET_TEMP, 6) # Čitamo 6 registara da uključimo UNIX_TIME
     rmode = read_hregs(client, slave_id, MB_REG_RELAY_MODE, 1)
     iregs = read_iregs(client, slave_id, MB_IREG_CURRENT_TEMP, 8) # Čitamo 8 registara
     coils = read_coils(client, slave_id, MB_COIL_DND, 2)
@@ -142,6 +148,17 @@ def do_read_state(client, slave_id, verbose=True):
     raw_out = hregs.registers[3]
     out_temp = raw_out if raw_out < 32768 else raw_out - 65536
     print_success(f"Outside Temp: {out_temp}°C")
+    
+    # Čitanje i dekodiranje vremena na termostatu
+    low_time = hregs.registers[4]
+    high_time = hregs.registers[5]
+    thermo_time = (high_time << 16) | low_time
+    if thermo_time > 1672531200:
+        time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(thermo_time))
+    else:
+        time_str = f"Not set / raw uptime ({thermo_time}s)"
+    print_success(f"Clock Time  : {time_str}")
+    
     print_success(f"Relay Mode  : {relay_names.get(rmode.registers[0], 'UNK')}")
     
     print_info(f"--- Sensors & System (Input Regs) ---")
@@ -175,6 +192,7 @@ def interactive_menu(client, slave_id):
         print("6. Toggle DND (Do Not Disturb)")
         print("7. Toggle MUR (Make Up Room)")
         print("8. Set Outside Temp (e.g. -5)")
+        print("9. Synchronize Time (Send PC Time)")
         print("0. Back to Main Menu")
         
         try:
@@ -205,6 +223,13 @@ def interactive_menu(client, slave_id):
                 val = int(input("Enter Outside Temp (-15 to 45): "))
                 # Bitwise AND za dvokomplementni zapis (-5 postaje 65531 odnosno 0xFFFB)
                 write_reg(client, slave_id, MB_REG_OUTSIDE_TEMP, val & 0xFFFF)
+            elif choice == '9':
+                curr_time = int(time.time())
+                low_word = curr_time & 0xFFFF
+                high_word = (curr_time >> 16) & 0xFFFF
+                print_info(f"Syncing time: Sending {curr_time} ({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(curr_time))})")
+                if write_regs(client, slave_id, MB_REG_UNIX_TIME_L, [low_word, high_word]):
+                    print_success("Time synchronization sent successfully!")
             elif choice == '0':
                 break
         except ValueError:
@@ -214,6 +239,11 @@ def interactive_menu(client, slave_id):
 
 # ── Auto Test Mode ────────────────────────────────────────────────────────────
 def run_automated_test(client, slave_id, cycles):
+    # Automatska sinhronizacija vremena na početku testa
+    curr_time = int(time.time())
+    write_regs(client, slave_id, MB_REG_UNIX_TIME_L, [curr_time & 0xFFFF, (curr_time >> 16) & 0xFFFF])
+    print_success("Auto-synced time at test start.")
+
     for cycle in range(1, cycles + 1):
         print_header(f"CYCLE {cycle}/{cycles}")
         do_read_state(client, slave_id, verbose=False)
