@@ -1,11 +1,21 @@
 #include "modbus_handler.h"
 #include "settings.h"
+#include <sys/time.h>
 #include "debug_logger.h"
 #include "hal.h"
 #include "hvac.h"  // for hvac_get_room_temp(), hvac_relay_active()
 #include <ModbusRTU.h>
 #include <Preferences.h>
 #include <esp_heap_caps.h>
+
+// Forward declaration from main.cpp
+#ifdef __cplusplus
+extern "C" {
+#endif
+void on_time_synced(const char* source);
+#ifdef __cplusplus
+}
+#endif
 
 // ── Global data ───────────────────────────────────────────────────────────────
 mb_data_t g_mb;
@@ -15,6 +25,11 @@ static ModbusRTU s_mb;
 // Coil mirror — readable from main.cpp via extern
 bool g_mb_coil_dnd = false;
 bool g_mb_coil_mur = false;
+
+// Outside Temperature tracking
+static bool s_has_outside_temp = false;
+static unsigned long s_last_outside_temp_ms = 0;
+#define OUTSIDE_TEMP_TIMEOUT_MS 10800000UL // 3 hours
 
 // ── Callbacks ────────────────────────────────────────────────────────────────
 
@@ -60,6 +75,22 @@ static uint16_t cb_hreg_write(TRegister *reg, uint16_t val)
         case MB_REG_RELAY_MODE:
             if (val > 1) val = 0;
             break;
+        case MB_REG_OUTSIDE_TEMP:
+            // Vanjska temperatura ažurirana
+            s_has_outside_temp = true;
+            s_last_outside_temp_ms = millis();
+            break;
+        case MB_REG_UNIX_TIME_L:
+            // Master should write H and L together. We act on H write.
+            break;
+        case MB_REG_UNIX_TIME_H: {
+            uint32_t unix_time = ((uint32_t)val << 16) | g_mb.hreg[MB_REG_UNIX_TIME_L];
+            timeval tv = { .tv_sec = unix_time, .tv_usec = 0 };
+            settimeofday(&tv, NULL);
+            on_time_synced("Modbus");
+            LOG_INFO("[MB] Time synced from Modbus: %lu", unix_time);
+            break;
+        }
         default:
             break;
     }
@@ -247,6 +278,21 @@ bool modbus_get_window_closed(void)
 bool modbus_get_hvac_active(void)
 {
     return s_mb.Ists(MB_ISTS_HVAC_ACTIVE);
+}
+
+bool modbus_has_outside_temp(void)
+{
+    return s_has_outside_temp;
+}
+
+void modbus_check_outside_temp_timeout(void)
+{
+    if (s_has_outside_temp) {
+        if (millis() - s_last_outside_temp_ms >= OUTSIDE_TEMP_TIMEOUT_MS) {
+            s_has_outside_temp = false;
+            LOG_INFO("[MB] Outside temperature timed out (> 3 hours)");
+        }
+    }
 }
 
 #ifdef __cplusplus

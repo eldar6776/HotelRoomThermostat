@@ -56,7 +56,8 @@ void settings_reset_dirty(void);
 void inactivity_reset(void);            // call on any touch event
 void inactivity_touch_event(void);      // reset inactivity + restore high brightness
 void inactivity_check(void);            // call from timer or loop
-void inactivity_force_timeout(void);    // force screensaver action immediately
+void inactivity_force_timeout(void);
+bool inactivity_is_screensaver_active(void);
 bool inactivity_on_settings_screen(void);
 void inactivity_set_on_settings(bool on);
 #ifdef __cplusplus

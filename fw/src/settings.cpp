@@ -2,6 +2,7 @@
 #include <Preferences.h>
 #include "debug_logger.h"
 #include "hvac.h"
+#include "modbus_handler.h"
 #include <lvgl.h>
 
 // Forward declare ui_Main for screen-change use in inactivity callback
@@ -52,12 +53,22 @@ static void inactivity_apply_screensaver(void)
         // runs from the Modbus register, not g_sys_cfg, so the register must
         // also be restored.
         hvac_set_mode(g_sys_cfg.hvac_mode);
+        modbus_set_relay_mode(g_sys_cfg.ctrl_type);
+        modbus_set_slave_addr(g_sys_cfg.modbus_addr);
+        modbus_set_target_temp((uint16_t)(g_sys_cfg.target_temp * 10));
         s_on_settings = false;
     }
 
     // Dim display — g_sys_cfg.bright_low is now the NVS value if settings
     // were discarded above, or the committed value otherwise.
     hal_backlight_set(g_sys_cfg.bright_low);
+
+    if (!g_wifi_ap_active) {
+        setCpuFrequencyMhz(80);
+        LOG_INFO("[CFG] CPU clock reduced to 80MHz (Screensaver)");
+    } else {
+        LOG_INFO("[CFG] CPU clock kept at 240MHz (WiFi AP active)");
+    }
 
     if (active != ui_Main) {
         _ui_screen_change(&ui_Main, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_Main_screen_init);
@@ -187,6 +198,12 @@ void settings_tick(void)
 void inactivity_reset(void)
 {
     if (s_screensaver_active) return;  // ignore events during screen transition
+    
+    if (getCpuFrequencyMhz() != 240) {
+        setCpuFrequencyMhz(240);
+        LOG_INFO("[CFG] CPU clock restored to 240MHz (Wakeup)");
+    }
+    
     // Keep legacy API behavior but ensure any touch restores high brightness.
     hal_backlight_set(g_sys_cfg.bright_high);
     s_last_touch_ms = millis();
@@ -218,13 +235,10 @@ void inactivity_check(void)
     if (ui_clean_countdown_active()) return;
     if (s_screensaver_active) return;
 
-    // Inactivity timeout applies to Settings screens only.
+    // Uklonjeno ograničenje: ranije se timeout primjenjivao samo na Settings ekranima.
+    // Sada će se ekran dimmati na g_sys_cfg.bright_low nakon isteka vremena, 
+    // bez obzira na kojem ekranu se nalazite.
     lv_obj_t *active = lv_scr_act();
-    bool on_settings_screen =
-        (active == ui_Settings1) ||
-        (active == ui_Settings2) ||
-        (active == ui_Settings3);
-    if (!on_settings_screen && !s_on_settings) return;
 
     // Runtime safety net: if NVS is corrupted, fall back to default.
     if (!timeout_is_valid(g_sys_cfg.timeout_s)) {
@@ -243,4 +257,9 @@ void inactivity_force_timeout(void)
 {
     inactivity_apply_screensaver();
     s_last_touch_ms = millis();
+}
+
+bool inactivity_is_screensaver_active(void)
+{
+    return s_screensaver_active;
 }

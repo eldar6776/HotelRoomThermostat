@@ -231,6 +231,12 @@ void hvac_update(void)
         s_auto_fan_init = false;
         // Opcionalni Safe-Off ako se mijenja sam HVAC mod:
         if (s_hvac_mode != new_mode) relay_set_target(0);
+        
+        if (s_setpoint != new_setpoint && g_sys_cfg.target_temp != new_setpoint) {
+            g_sys_cfg.target_temp = new_setpoint;
+            g_dirty_flags |= FLAG_TARGET_TEMP;
+            settings_schedule_save();
+        }
     }
 
     s_setpoint   = new_setpoint;
@@ -261,13 +267,14 @@ void hvac_update(void)
         }
     } else {
         s_good_readings = 0;
-        s_bad_readings++;
+        if (s_bad_readings < 255) s_bad_readings++;
 
-        if (!s_sensor_fault && s_bad_readings >= 5) {
-            s_sensor_fault = true;
-            LOG_ERROR("[HVAC] Sensor FAULT detected — %u bad readings, t=%.1f, r_ntc=%.0f",
-                      s_bad_readings, t, r_ntc);
-            relay_set_target(0);
+        if (s_bad_readings >= 5) {
+            if (!s_sensor_fault) {
+                s_sensor_fault = true;
+                LOG_ERROR("[HVAC] Sensor FAULT detected — %u bad readings, t=%.1f, r_ntc=%.0f",
+                          s_bad_readings, t, r_ntc);
+            }
         }
     }
 
@@ -279,57 +286,45 @@ void hvac_update(void)
                  window_now_open ? "OPEN" : "CLOSED");
         s_window_open = window_now_open;
     }
-    if (s_window_open && s_hvac_mode != HVAC_OFF) {
-        bool any_on = hal_relay_is_on(1) || hal_relay_is_on(2) || hal_relay_is_on(3);
-        if (any_on) {
-            LOG_DEBUG("Window is open, forcing HVAC OFF");
-        }
-        relay_set_target(0);
-        return;
-    }
-
-    // 2b. Sensor fault — safe-off, no thermostat logic while faulty
-    if (s_sensor_fault) {
-        return;
-    }
-
-    // 3. Deadband guard — thermostat logic is blocked while a relay switch is
-    //    in progress.  hvac_deadband_tick() (called every loop() iteration)
-    //    fires the target relay once RELAY_DEADBAND_MS has elapsed.
-    if (s_db_state == DB_WAITING) {
-        return;
-    }
-
-    // 4. Thermostat logic (simple hysteresis from settings)
-    float compensated_room_temp = s_room_temp_ema + (g_sys_cfg.sensor_offset_x10 / 10.0f);
-    float hyst = g_sys_cfg.hysteresis_x10 / 10.0f;
-    float error = (float)s_setpoint - compensated_room_temp;
 
     uint8_t desired_relay = 0;
-    switch (s_hvac_mode) {
-        case HVAC_HEAT:
-            if (error > (hyst / 2.0f))
-                desired_relay = pick_relay(error, hyst);
-            else if (error < -(hyst / 2.0f))
+
+    if (s_sensor_fault || (s_window_open && s_hvac_mode != HVAC_OFF)) {
+        desired_relay = 0;
+    } else if (s_db_state == DB_WAITING) {
+        // 3. Deadband guard — thermostat logic is blocked while a relay switch is in progress.
+        return;
+    } else {
+        // 4. Thermostat logic (simple hysteresis from settings)
+        float compensated_room_temp = s_room_temp_ema + (g_sys_cfg.sensor_offset_x10 / 10.0f);
+        float hyst = g_sys_cfg.hysteresis_x10 / 10.0f;
+        float error = (float)s_setpoint - compensated_room_temp;
+
+        switch (s_hvac_mode) {
+            case HVAC_HEAT:
+                if (error > (hyst / 2.0f))
+                    desired_relay = pick_relay(error, hyst);
+                else if (error < -(hyst / 2.0f))
+                    desired_relay = 0;
+                else
+                    // hysteresis band — keep current state
+                    desired_relay = (hal_relay_is_on(1) || hal_relay_is_on(2) || hal_relay_is_on(3))
+                                    ? pick_relay(error, hyst) : 0;
+                break;
+            case HVAC_COOL:
+                if (error < -(hyst / 2.0f))
+                    desired_relay = pick_relay(error, hyst);
+                else if (error > (hyst / 2.0f))
+                    desired_relay = 0;
+                else
+                    desired_relay = (hal_relay_is_on(1) || hal_relay_is_on(2) || hal_relay_is_on(3))
+                                    ? pick_relay(error, hyst) : 0;
+                break;
+            case HVAC_OFF:
+            default:
                 desired_relay = 0;
-            else
-                // hysteresis band — keep current state
-                desired_relay = (hal_relay_is_on(1) || hal_relay_is_on(2) || hal_relay_is_on(3))
-                                ? pick_relay(error, hyst) : 0;
-            break;
-        case HVAC_COOL:
-            if (error < -(hyst / 2.0f))
-                desired_relay = pick_relay(error, hyst);
-            else if (error > (hyst / 2.0f))
-                desired_relay = 0;
-            else
-                desired_relay = (hal_relay_is_on(1) || hal_relay_is_on(2) || hal_relay_is_on(3))
-                                ? pick_relay(error, hyst) : 0;
-            break;
-        case HVAC_OFF:
-        default:
-            desired_relay = 0;
-            break;
+                break;
+        }
     }
 
     // Only change if different from current state (avoids continuous deadband triggering)

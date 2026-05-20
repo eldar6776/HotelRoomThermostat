@@ -1,5 +1,8 @@
 #include <Arduino.h>
 #include <esp_heap_caps.h>
+#include <time.h>
+#include <sys/time.h>
+#include <WiFi.h>
 #include <lvgl.h>
 
 #include "hal.h"
@@ -7,6 +10,7 @@
 #include "modbus_handler.h"
 #include "hvac.h"
 #include "debug_logger.h"
+#include "wifi_manager.h"
 
 extern "C" {
     #include "../lvgl/ui.h"
@@ -17,7 +21,7 @@ extern "C" {
     void action_dnd_toggled(lv_event_t * e);
     void action_mur_toggled(lv_event_t * e);
     void settings3_loaded_cb(lv_event_t *e);
-    void ui_event_ArcTemp(lv_event_t * e);  // from ui_Thermostat.c
+    void action_arc_temp_changed(lv_event_t * e);
 }
 
 // Coil mirrors from modbus_handler
@@ -36,17 +40,96 @@ extern bool g_mb_coil_mur;
 static unsigned long t_hvac      = 0;
 static unsigned long t_clock     = 0;
 static unsigned long t_inact     = 0;
+static unsigned long s_boot_ms   = 0;
+
+// ── Time Sync State Machine ───────────────────────────────────────────────────
+static bool s_is_clock_set = false;
+static unsigned long s_last_sync_ms = 0;
+static bool s_initial_sync_pending = true;
+
+void on_time_synced(const char* source) {
+    s_is_clock_set = true;
+    s_last_sync_ms = millis();
+    s_initial_sync_pending = false; // No need for initial sync anymore
+    LOG_INFO("[TIME] Clock synchronized via %s", source);
+}
+
+void try_ntp_sync() {
+    if (g_wifi_ap_active) {
+        LOG_INFO("[NTP] Sync skipped, WiFi AP is active.");
+        return;
+    }
+
+    if (!wifi_manager_has_credentials()) {
+        LOG_INFO("[NTP] Sync skipped, no WiFi credentials saved.");
+        return;
+    }
+
+    LOG_INFO("[NTP] Starting NTP sync attempt...");
+    
+    bool was_screensaver = inactivity_is_screensaver_active();
+    if (getCpuFrequencyMhz() < 160) {
+        setCpuFrequencyMhz(240);
+        LOG_INFO("[NTP] CPU clock restored to 240MHz for WiFi.");
+    }
+
+    WiFi.mode(WIFI_STA);
+    WiFi.begin();
+
+    unsigned long connect_start = millis();
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        if (millis() - connect_start > 20000) { // 20s connect timeout
+            LOG_ERROR("[NTP] WiFi connection timed out.");
+            WiFi.disconnect(true);
+            WiFi.mode(WIFI_OFF);
+            if (was_screensaver) {
+                setCpuFrequencyMhz(80);
+                LOG_INFO("[NTP] CPU clock returned to 80MHz.");
+            }
+            return;
+        }
+    }
+    LOG_INFO("[NTP] WiFi connected: %s", WiFi.localIP().toString().c_str());
+
+    configTime(3600, 0, "pool.ntp.org", "time.nist.gov");
+    
+    unsigned long ntp_start = millis();
+    while (time(nullptr) < 1672531200) { // Check if time is later than 2023-01-01
+        delay(100);
+        if (millis() - ntp_start > 10000) { // 10s NTP timeout
+            LOG_ERROR("[NTP] NTP time sync timed out.");
+            break;
+        }
+    }
+
+    if (time(nullptr) > 1672531200) {
+        on_time_synced("NTP");
+    }
+
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    LOG_INFO("[NTP] WiFi disconnected, sync process finished.");
+
+    if (was_screensaver) {
+        setCpuFrequencyMhz(80);
+        LOG_INFO("[NTP] CPU clock returned to 80MHz.");
+    }
+}
 
 // ── Clock helpers ─────────────────────────────────────────────────────────────
-// RTC is not set in this firmware — show uptime-based time as placeholder
-// (NTP sync is a future enhancement)
 static void update_clock_label(void)
 {
-    unsigned long s = millis() / 1000;
-    unsigned int  h = (s / 3600) % 24;
-    unsigned int  m = (s / 60)   % 60;
-    // unsigned int  sec = s         % 60; // Sekunde uklonjene
-    lv_label_set_text_fmt(ui_LabelClock, "%02u:%02u", h, m);
+    if (!s_is_clock_set) {
+        unsigned long s = millis() / 1000;
+        unsigned int  h = (s / 3600) % 24;
+        unsigned int  m = (s / 60)   % 60;
+        lv_label_set_text_fmt(ui_LabelClock, "%02u:%02u", h, m);
+    } else {
+        time_t now_time = time(NULL);
+        struct tm *t = localtime(&now_time);
+        lv_label_set_text_fmt(ui_LabelClock, "%02d:%02d", t->tm_hour, t->tm_min);
+    }
 }
 
 // ── Room temperature → UI ────────────────────────────────────────────────────
@@ -56,12 +139,12 @@ static void update_temp_labels(void)
               + (g_sys_cfg.sensor_offset_x10 / 10.0f);
     char temp_buf[32]; // Buffer for formatted strings
 
-    // Main screen label (one line)
-    snprintf(temp_buf, sizeof(temp_buf), "Innen: %.1f°C", (double)t);
+    // Main screen label (one line, 5 spaces)
+    snprintf(temp_buf, sizeof(temp_buf), "Innen:     %.0f°C", roundf(t));
     lv_label_set_text(ui_LabelCurrentTemp, temp_buf);
 
-    // Thermostat screen label (two lines)
-    snprintf(temp_buf, sizeof(temp_buf), "Innen:\n%.1f°C", (double)t);
+    // Thermostat screen label (one line, no spaces)
+    snprintf(temp_buf, sizeof(temp_buf), "Innen:  %.0f°C", roundf(t));
     lv_label_set_text(ui_LabelRoomTemp, temp_buf);
 
     // Window open warning — no UI element currently assigned
@@ -102,9 +185,9 @@ static void update_thermostat_widgets(void)
         int sp = (int)(mb_setpoint_x10 / 10);
         // Remove only our specific callback to avoid silently discarding any
         // future callbacks registered on this object.
-        lv_obj_remove_event_cb(ui_ArcTemp, ui_event_ArcTemp);
+        lv_obj_remove_event_cb(ui_ArcTemp, action_arc_temp_changed);
         lv_arc_set_value(ui_ArcTemp, sp);
-        lv_obj_add_event_cb(ui_ArcTemp, ui_event_ArcTemp, LV_EVENT_VALUE_CHANGED, NULL);
+        lv_obj_add_event_cb(ui_ArcTemp, action_arc_temp_changed, LV_EVENT_VALUE_CHANGED, NULL);
         lv_label_set_text_fmt(ui_LabelTargetTemp, "%d°", sp);
     }
 
@@ -144,10 +227,16 @@ static void update_thermostat_widgets(void)
 // Placeholder for future weather integration
 static void update_outside_temp_label(void)
 {
-    // For now, this is a static placeholder.
-    // In the future, this will be driven by Modbus weather data.
-    // TODO: Replace with lv_label_set_text_fmt(ui_LabelOutdoorTemp, "Aussen: %.0f°C", outside_temp);
-    lv_label_set_text(ui_LabelOutdoorTemp, "Aussen: 18°C");
+    if (modbus_has_outside_temp()) {
+        lv_obj_clear_flag(ui_LabelOutdoorTemp, LV_OBJ_FLAG_HIDDEN);
+        // Cast uint16_t -> int16_t -> int da bi ispravno očitali negativne temperature (npr. -5°C)
+        int out_temp = (int)(int16_t)g_mb.hreg[MB_REG_OUTSIDE_TEMP];
+        char temp_buf[32];
+        snprintf(temp_buf, sizeof(temp_buf), "Aussen:     %d°C", out_temp);
+        lv_label_set_text(ui_LabelOutdoorTemp, temp_buf);
+    } else {
+        lv_obj_add_flag(ui_LabelOutdoorTemp, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 // ── setup ────────────────────────────────────────────────────────────────────
@@ -156,6 +245,8 @@ void setup(void)
     Serial.begin(115200);
     delay(300);
     
+    s_boot_ms = millis();
+
     LOG_INFO("=== Hotel Room Thermostat ===");
     LOG_INFO("CPU: %lu MHz   PSRAM: %.1f MB free",
              getCpuFrequencyMhz(),
@@ -164,6 +255,9 @@ void setup(void)
     // 1. Load NVS configuration
     settings_init();
     LOG_INFO("[MAIN] Settings loaded");
+
+    // 1.5 Init WiFi Manager
+    wifi_manager_init();
 
     // 2. Initialise all hardware + LVGL
     board_hal_init();
@@ -196,7 +290,7 @@ void setup(void)
     int sp = g_mb.hreg[MB_REG_TARGET_TEMP] / 10;
     lv_obj_remove_event_cb(ui_ArcTemp, NULL);  // detach all callbacks temporarily
     lv_arc_set_value(ui_ArcTemp, sp);          // set value without triggering hvac_set_setpoint
-    lv_obj_add_event_cb(ui_ArcTemp, ui_event_ArcTemp, LV_EVENT_VALUE_CHANGED, NULL);  // re-attach
+    lv_obj_add_event_cb(ui_ArcTemp, action_arc_temp_changed, LV_EVENT_VALUE_CHANGED, NULL);  // re-attach
     lv_label_set_text_fmt(ui_LabelTargetTemp, "%d°", sp);
     // Seed the mirror so update_thermostat_widgets() skips on first loop iteration
     s_last_displayed_setpoint = (uint16_t)(sp * 10);
@@ -245,6 +339,21 @@ void loop(void)
         update_thermostat_widgets();  // sync Modbus→GUI for setpoint, fan, DND/MUR
         // Update Modbus input registers with current system state
         modbus_update_inputs();
+        
+        modbus_check_outside_temp_timeout();
+        update_outside_temp_label();
+    }
+
+    // Time Sync Logic
+    if (s_initial_sync_pending && (now - s_boot_ms > 15000UL)) {
+        LOG_INFO("[TIME] 15s boot delay passed, attempting initial NTP sync.");
+        s_initial_sync_pending = false; // Attempt only once
+        try_ntp_sync();
+    }
+
+    if (s_is_clock_set && (now - s_last_sync_ms > 3600000UL)) { // 60 minutes
+        LOG_INFO("[TIME] 60min since last sync, attempting fallback NTP sync.");
+        try_ntp_sync();
     }
 
     // Clock refresh
@@ -257,6 +366,11 @@ void loop(void)
     if (now - t_inact >= INACTIVITY_CHECK_MS) {
         t_inact = now;
         inactivity_check();
+    }
+
+    // Obrada WebServer zahtjeva za OTA (samo kad je AP uključen)
+    if (g_wifi_ap_active) {
+        wifi_manager_tick();
     }
 
     // Deferred NVS save — fires once, 3 s after the last settings change

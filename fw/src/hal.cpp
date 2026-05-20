@@ -423,9 +423,9 @@ void hal_relay_set(uint8_t relay_id, bool on)
     } else {
         new_state &= ~bit;  // 0 = relej OFF (ULN2003 transistor OFF)
     }
-    bool ok = pca9554_write_output(new_state);
+    s_exp_output_state = new_state;
+    bool ok = pca9554_write_output(s_exp_output_state);
     if (ok) {
-        s_exp_output_state = new_state;
         s_relay_fault = false;
     } else {
         s_relay_fault = true;
@@ -479,9 +479,9 @@ void hal_relay_all_off(void)
     pcf8574_write(s_exp_output_state);
 #else
     uint8_t new_state = s_exp_output_state & ~(RELAY1_BIT | RELAY2_BIT | RELAY3_BIT);
-    bool ok = pca9554_write_output(new_state);
+    s_exp_output_state = new_state;
+    bool ok = pca9554_write_output(s_exp_output_state);
     if (ok) {
-        s_exp_output_state = new_state;
         s_relay_fault = false;
     } else {
         s_relay_fault = true;

@@ -4,9 +4,12 @@
 
 // ── Register addresses (1-based, FSD §2) ────────────────────────────────────
 // Modbus holding register numbers map to 0-based index as: addr - 40001
-#define MB_REG_TARGET_TEMP   0   // 40001 – setpoint ×10
-#define MB_REG_HVAC_MODE     1   // 40002 – 0=OFF,1=HEAT,2=COOL
-#define MB_REG_FAN_SPEED     2   // 40003 – 0=AUTO,1=LOW,2=MID,3=HIGH
+#define MB_REG_TARGET_TEMP   0    // 40001 – setpoint ×10
+#define MB_REG_HVAC_MODE     1    // 40002 – 0=OFF,1=HEAT,2=COOL
+#define MB_REG_FAN_SPEED     2    // 40003 – 0=AUTO,1=LOW,2=MID,3=HIGH
+#define MB_REG_OUTSIDE_TEMP  3    // 40004 – Outside temp (raw °C)
+#define MB_REG_UNIX_TIME_L   4    // 40005 - UNIX timestamp (low word)
+#define MB_REG_UNIX_TIME_H   5    // 40006 - UNIX timestamp (high word)
 #define MB_REG_RELAY_MODE    21  // 40022 – 0=3-speed,1=1-relay
 #define MB_HREG_COUNT        22  // total holding registers (0-21)
 #define MB_COIL_DND          0   // 00001 – Do Not Disturb
@@ -78,6 +81,10 @@ uint16_t modbus_get_current_temp(void);   // returns temperature x10
 uint16_t modbus_get_relay_status(void);   // returns relay bit field
 bool     modbus_get_window_closed(void);  // returns true if window closed
 bool     modbus_get_hvac_active(void);    // returns true if HVAC relay on
+
+// Watchdog za vanjsku temperaturu
+bool     modbus_has_outside_temp(void);
+void     modbus_check_outside_temp_timeout(void);
 
 #ifdef __cplusplus
 }
