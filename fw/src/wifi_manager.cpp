@@ -23,7 +23,11 @@ void wifi_manager_init() {
 static void wifi_manager_stop_portal() {
     if (!s_portal_running) return;
     
-    wm.stopConfigPortal();
+    // Only call stopConfigPortal if it is actually still active inside WiFiManager to avoid duplicate shutdown crashes
+    if (wm.getConfigPortalActive()) {
+        wm.stopConfigPortal();
+    }
+    
     WiFi.mode(WIFI_OFF);
     s_portal_running = false;
     g_wifi_ap_active = false;
@@ -45,9 +49,9 @@ void wifi_manager_tick() {
     if (s_portal_running) {
         wm.process(); // Handles the web server and timeout
         
-        // Check if portal has timed out
-        if (wm.getWebPortalActive() == false && s_portal_running) {
-             LOG_INFO("[WiFi] AP Timeout from WiFiManager. Shutting down.");
+        // Check if portal has timed out or closed
+        if (wm.getConfigPortalActive() == false && s_portal_running) {
+             LOG_INFO("[WiFi] AP Timeout or close from WiFiManager. Shutting down.");
              wifi_manager_stop_portal();
         }
     }
@@ -69,6 +73,17 @@ void wifi_manager_set_ap(bool enable) {
 
 bool wifi_manager_has_credentials() {
     // ESP32 automatically stores WiFi credentials in NVS. 
-    // If WiFi.SSID() has content, we have saved credentials.
-    return WiFi.SSID().length() > 0;
+    // If WiFi driver is off, WiFi.SSID() is empty.
+    // We temporarily initialize STA mode to read the saved SSID from NVS.
+    wifi_mode_t old_mode = WiFi.getMode();
+    if (old_mode == WIFI_OFF || old_mode == WIFI_MODE_NULL) {
+        WiFi.mode(WIFI_STA);
+    }
+    
+    bool has_creds = (WiFi.SSID().length() > 0) || (wm.getWiFiIsSaved());
+    
+    if (old_mode == WIFI_OFF || old_mode == WIFI_MODE_NULL) {
+        WiFi.mode(WIFI_OFF);
+    }
+    return has_creds;
 }
