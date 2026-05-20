@@ -86,6 +86,8 @@ bool     modbus_get_hvac_active(void);    // returns true if HVAC relay on
 bool     modbus_has_outside_temp(void);
 void     modbus_check_outside_temp_timeout(void);
 
+void     on_time_synced(const char* source);
+
 #ifdef __cplusplus
 }
 #endif

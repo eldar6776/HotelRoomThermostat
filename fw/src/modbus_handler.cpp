@@ -8,15 +8,6 @@
 #include <Preferences.h>
 #include <esp_heap_caps.h>
 
-// Forward declaration from main.cpp
-#ifdef __cplusplus
-extern "C" {
-#endif
-void on_time_synced(const char* source);
-#ifdef __cplusplus
-}
-#endif
-
 // ── Global data ───────────────────────────────────────────────────────────────
 mb_data_t g_mb;
 

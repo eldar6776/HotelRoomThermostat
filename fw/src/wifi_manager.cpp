@@ -1,8 +1,8 @@
 #include "wifi_manager.h"
 #include "debug_logger.h"
 #include "settings.h"
+#include <WiFi.h>
 #include <WiFiManager.h>
-#include <Preferences.h>
 #include <Update.h>
 #include <lvgl.h>
 
@@ -19,15 +19,10 @@ const char* ota_html =
 "<input type='submit' value='Pokreni Update' style='padding: 10px 20px; font-size: 16px;'>"
 "</form><hr>";
 
-void wifi_manager_init() {
-    // Configure WiFiManager
-    wm.setConnectTimeout(20);
-    wm.setConfigPortalTimeout(180); // 3 minutes
+// Web server callback to safely register /update route once WebServer is created
+static void bindServerCallback() {
+    if (!wm.server) return;
     
-    // Add OTA update functionality to the portal
-    wm.setCustomHeadElement(ota_html);
-    
-    // Handler for the OTA update form
     wm.server->on("/update", HTTP_POST, []() {
         wm.server->sendHeader("Connection", "close");
         wm.server->send(200, "text/plain", (Update.hasError()) ? "GRESKA!" : "OK! Restart...");
@@ -52,6 +47,13 @@ void wifi_manager_init() {
             }
         }
     });
+}
+
+void wifi_manager_init() {
+    wm.setConnectTimeout(20);
+    wm.setConfigPortalTimeout(180); // 3 minutes
+    wm.setCustomHeadElement(ota_html);
+    wm.setWebServerCallback(bindServerCallback);
 }
 
 static void wifi_manager_stop_portal() {
@@ -102,9 +104,7 @@ void wifi_manager_set_ap(bool enable) {
 }
 
 bool wifi_manager_has_credentials() {
-    Preferences prefs;
-    prefs.begin("wifimanager", true); // read-only
-    bool has_ssid = prefs.isKey("wifi.ssid");
-    prefs.end();
-    return has_ssid;
+    // ESP32 automatically stores WiFi credentials in NVS. 
+    // If WiFi.SSID() has content, we have saved credentials.
+    return WiFi.SSID().length() > 0;
 }
