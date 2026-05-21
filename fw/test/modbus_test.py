@@ -32,6 +32,15 @@ MB_REG_FAN_SPEED = 2
 MB_REG_OUTSIDE_TEMP = 3
 MB_REG_UNIX_TIME_L = 4
 MB_REG_UNIX_TIME_H = 5
+MB_REG_TEMP_MIN = 6
+MB_REG_TEMP_MAX = 7
+MB_REG_HYSTERESIS = 8
+MB_REG_STAGE_STEP = 9
+MB_REG_SENSOR_OFFSET = 10
+MB_REG_BRIGHT_HIGH = 11
+MB_REG_BRIGHT_LOW = 12
+MB_REG_TIMEOUT_S = 13
+MB_REG_THEME_SELECT = 14
 MB_REG_RELAY_MODE = 21
 
 # Input Registers (30001+, 0-based)
@@ -126,7 +135,7 @@ def do_read_state(client, slave_id, verbose=True):
     """Kombinovano čitanje kompletnog stanja termostata"""
     if verbose: print_header("READING FULL THERMOSTAT STATE")
     
-    hregs = read_hregs(client, slave_id, MB_REG_TARGET_TEMP, 6) # Čitamo 6 registara da uključimo UNIX_TIME
+    hregs = read_hregs(client, slave_id, MB_REG_TARGET_TEMP, 15) # Čitamo 15 registara (0 do 14)
     rmode = read_hregs(client, slave_id, MB_REG_RELAY_MODE, 1)
     iregs = read_iregs(client, slave_id, MB_IREG_CURRENT_TEMP, 8) # Čitamo 8 registara
     coils = read_coils(client, slave_id, MB_COIL_DND, 2)
@@ -158,6 +167,20 @@ def do_read_state(client, slave_id, verbose=True):
     else:
         time_str = f"Not set / raw uptime ({thermo_time}s)"
     print_success(f"Clock Time  : {time_str}")
+    
+    print_success(f"Temp Min    : {hregs.registers[6]}°C")
+    print_success(f"Temp Max    : {hregs.registers[7]}°C")
+    print_success(f"Hysteresis  : {hregs.registers[8]/10.0}°C")
+    print_success(f"Stage Step  : {hregs.registers[9]/10.0}°C")
+    
+    raw_offset = hregs.registers[10]
+    sensor_offset = raw_offset if raw_offset < 32768 else raw_offset - 65536
+    print_success(f"Sensor Offset: {sensor_offset/10.0}°C")
+    
+    print_success(f"Bright High : {hregs.registers[11]}")
+    print_success(f"Bright Low  : {hregs.registers[12]}")
+    print_success(f"Timeout S   : {hregs.registers[13]}s")
+    print_success(f"Theme Select: {'LOGO' if hregs.registers[14] == 1 else 'NONE'} ({hregs.registers[14]})")
     
     print_success(f"Relay Mode  : {relay_names.get(rmode.registers[0], 'UNK')}")
     
@@ -193,6 +216,7 @@ def interactive_menu(client, slave_id):
         print("7. Toggle MUR (Make Up Room)")
         print("8. Set Outside Temp (e.g. -5)")
         print("9. Synchronize Time (Send PC Time)")
+        print("10. Set System Configuration Settings")
         print("0. Back to Main Menu")
         
         try:
@@ -230,6 +254,46 @@ def interactive_menu(client, slave_id):
                 print_info(f"Syncing time: Sending {curr_time} ({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(curr_time))})")
                 if write_regs(client, slave_id, MB_REG_UNIX_TIME_L, [low_word, high_word]):
                     print_success("Time synchronization sent successfully!")
+            elif choice == '10':
+                print("\nSystem Settings:")
+                print("a. Set Temp Min (10 to 24 °C)")
+                print("b. Set Temp Max (25 to 40 °C)")
+                print("c. Set Hysteresis (0.2 to 2.0 °C)")
+                print("d. Set Stage Step (0.5 to 2.5 °C)")
+                print("e. Set Sensor Offset (-5.0 to 5.0 °C)")
+                print("f. Set Brightness High (0 to 1023)")
+                print("g. Set Brightness Low (0 to 1023)")
+                print("h. Set Screensaver Timeout (30, 60, 120 s)")
+                print("i. Set Theme Select (0=NONE, 1=LOGO)")
+                sub_choice = input("Select setting to change (a-i): ").strip().lower()
+                
+                if sub_choice == 'a':
+                    val = int(input("Enter Min Temp (10-24): "))
+                    write_reg(client, slave_id, MB_REG_TEMP_MIN, val)
+                elif sub_choice == 'b':
+                    val = int(input("Enter Max Temp (25-40): "))
+                    write_reg(client, slave_id, MB_REG_TEMP_MAX, val)
+                elif sub_choice == 'c':
+                    val = float(input("Enter Hysteresis (0.2-2.0): "))
+                    write_reg(client, slave_id, MB_REG_HYSTERESIS, int(val * 10))
+                elif sub_choice == 'd':
+                    val = float(input("Enter Stage Step (0.5-2.5): "))
+                    write_reg(client, slave_id, MB_REG_STAGE_STEP, int(val * 10))
+                elif sub_choice == 'e':
+                    val = float(input("Enter Sensor Offset (-5.0 to 5.0): "))
+                    write_reg(client, slave_id, MB_REG_SENSOR_OFFSET, int(val * 10) & 0xFFFF)
+                elif sub_choice == 'f':
+                    val = int(input("Enter Brightness High (0-1023): "))
+                    write_reg(client, slave_id, MB_REG_BRIGHT_HIGH, val)
+                elif sub_choice == 'g':
+                    val = int(input("Enter Brightness Low (0-1023): "))
+                    write_reg(client, slave_id, MB_REG_BRIGHT_LOW, val)
+                elif sub_choice == 'h':
+                    val = int(input("Enter Screensaver Timeout (30/60/120): "))
+                    write_reg(client, slave_id, MB_REG_TIMEOUT_S, val)
+                elif sub_choice == 'i':
+                    val = int(input("Enter Theme Select (0=NONE, 1=LOGO): "))
+                    write_reg(client, slave_id, MB_REG_THEME_SELECT, val)
             elif choice == '0':
                 break
         except ValueError:
@@ -246,7 +310,28 @@ def run_automated_test(client, slave_id, cycles):
 
     for cycle in range(1, cycles + 1):
         print_header(f"CYCLE {cycle}/{cycles}")
-        do_read_state(client, slave_id, verbose=False)
+        
+        # Generiši slučajne validne parametre za nove NVS registre
+        t_min = random.randint(10, 24)
+        t_max = random.randint(25, 40)
+        hyst = random.randint(2, 20)      # Hysteresis x10 (0.2 do 2.0)
+        stage = random.randint(5, 25)     # Stage step x10 (0.5 do 2.5)
+        offset = random.randint(-50, 50)  # Offset x10 (-5.0 do 5.0)
+        b_high = random.randint(500, 1023)
+        b_low = random.randint(0, 499)
+        tout = random.choice([30, 60, 120])
+        theme = random.choice([0, 1])
+
+        print_info("Writing random new settings parameters via Modbus...")
+        write_reg(client, slave_id, MB_REG_TEMP_MIN, t_min)
+        write_reg(client, slave_id, MB_REG_TEMP_MAX, t_max)
+        write_reg(client, slave_id, MB_REG_HYSTERESIS, hyst)
+        write_reg(client, slave_id, MB_REG_STAGE_STEP, stage)
+        write_reg(client, slave_id, MB_REG_SENSOR_OFFSET, offset & 0xFFFF)
+        write_reg(client, slave_id, MB_REG_BRIGHT_HIGH, b_high)
+        write_reg(client, slave_id, MB_REG_BRIGHT_LOW, b_low)
+        write_reg(client, slave_id, MB_REG_TIMEOUT_S, tout)
+        write_reg(client, slave_id, MB_REG_THEME_SELECT, theme)
         
         temps = [20.0, 22.5, 24.0]
         modes = [HVAC_OFF, HVAC_HEAT, HVAC_COOL]
@@ -264,6 +349,36 @@ def run_automated_test(client, slave_id, cycles):
         write_coil(client, slave_id, MB_COIL_DND, cycle % 2 == 0)
         
         time.sleep(1.0)
+
+        # Čitanje i verifikacija
+        print_info("Verifying written parameters...")
+        hregs = read_hregs(client, slave_id, MB_REG_TARGET_TEMP, 15)
+        if not hregs:
+            print_error("Failed to read back holding registers for verification.")
+            continue
+            
+        # Pomoćna funkcija za poređenje
+        def verify_param(name, got, expected):
+            if got == expected:
+                print_success(f"{name} successfully verified: {got}")
+            else:
+                print_error(f"{name} verification FAILED! Got {got}, expected {expected}")
+
+        verify_param("Temp Min", hregs.registers[MB_REG_TEMP_MIN], t_min)
+        verify_param("Temp Max", hregs.registers[MB_REG_TEMP_MAX], t_max)
+        verify_param("Hysteresis", hregs.registers[MB_REG_HYSTERESIS], hyst)
+        verify_param("Stage Step", hregs.registers[MB_REG_STAGE_STEP], stage)
+        
+        raw_offset_read = hregs.registers[MB_REG_SENSOR_OFFSET]
+        offset_read = raw_offset_read if raw_offset_read < 32768 else raw_offset_read - 65536
+        verify_param("Sensor Offset", offset_read, offset)
+        
+        verify_param("Bright High", hregs.registers[MB_REG_BRIGHT_HIGH], b_high)
+        verify_param("Bright Low", hregs.registers[MB_REG_BRIGHT_LOW], b_low)
+        verify_param("Timeout S", hregs.registers[MB_REG_TIMEOUT_S], tout)
+        verify_param("Theme Select", hregs.registers[MB_REG_THEME_SELECT], theme)
+
+        do_read_state(client, slave_id, verbose=False)
         
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
