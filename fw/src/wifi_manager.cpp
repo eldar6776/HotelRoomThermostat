@@ -12,6 +12,18 @@ extern lv_obj_t *ui_SwitchStartAp;
 static WiFiManager wm;
 static bool s_portal_running = false;
 
+static void register_logo_upload_route();
+
+// Link na portalu — samo <a>, bez <form>, bez gniježđenja
+static WiFiManagerParameter upload_link(
+    "<hr>"
+    "<a href='/upload' target='_blank'"
+    "  style='display:block;padding:12px;background:#0078d7;color:#fff;"
+    "         text-align:center;border-radius:5px;text-decoration:none;"
+    "         font-size:16px;margin:8px 0;'>"
+    "&#128247; Upload Logo Baner</a>"
+);
+
 void wifi_manager_init() {
     wm.setConnectTimeout(20);
     wm.setConfigPortalTimeout(180); // 3 minutes
@@ -19,6 +31,9 @@ void wifi_manager_init() {
     // Configure WiFiManager menu to include the built-in firmware Update option
     std::vector<const char *> menu = {"wifi", "info", "param", "close", "sep", "update"};
     wm.setMenu(menu);
+
+    wm.addParameter(&upload_link);
+    wm.setWebServerCallback(register_logo_upload_route);
 }
 
 // ── Logo Upload Handler ───────────────────────────────────────────────────────
@@ -27,11 +42,6 @@ void wifi_manager_init() {
 // WiFiManagerove forme (HTML zabranjuje <form> unutar <form>).
 static void register_logo_upload_route() {
     if (!wm.server.get()) return;
-
-    // Stavljamo marker da smo već registrovali rute (samo jednom)
-    static bool s_routes_registered = false;
-    if (s_routes_registered) return;
-    s_routes_registered = true;
 
     // ── GET /upload — standalone HTML upload forma ──────────────────────────
     wm.server.get()->on("/upload", HTTP_GET, []() {
@@ -114,21 +124,6 @@ static void register_logo_upload_route() {
         }
     );
 
-    // Link na portalu — samo <a>, bez <form>, bez gniježđenja
-    static WiFiManagerParameter upload_link(
-        "<hr>"
-        "<a href='/upload' target='_blank'"
-        "  style='display:block;padding:12px;background:#0078d7;color:#fff;"
-        "         text-align:center;border-radius:5px;text-decoration:none;"
-        "         font-size:16px;margin:8px 0;'>"
-        "&#128247; Upload Logo Baner</a>"
-    );
-    static bool s_param_added = false;
-    if (!s_param_added) {
-        wm.addParameter(&upload_link);
-        s_param_added = true;
-    }
-
     LOG_INFO("[WiFi] Rute /upload i /upload_logo registrovane.");
 }
 
@@ -177,7 +172,6 @@ void wifi_manager_set_ap(bool enable) {
         g_wifi_ap_active = true; // Use existing global flag
         wm.setConfigPortalBlocking(false);
         wm.startConfigPortal("HotelThermostat", "12345678");
-        register_logo_upload_route(); // Registruj upload rutu odmah nakon pokretanja
         LOG_INFO("[WiFi] AP started: HotelThermostat (Web Server on port 80)");
     } else if (!enable && s_portal_running) {
         wifi_manager_stop_portal();
