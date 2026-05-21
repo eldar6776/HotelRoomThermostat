@@ -271,9 +271,16 @@ void action_clean_start(lv_event_t *e)
     unsigned long held = millis() - s_clean_press_ms;
     if (held >= 10000UL) {
         // 10 s hold → cancel timer, open PIN
-        lv_timer_del(s_clean_timer);
-        s_clean_timer = NULL;
+        if (s_clean_timer) {
+            lv_timer_del(s_clean_timer);
+            s_clean_timer = NULL;
+        }
         lv_obj_clear_flag(lv_layer_sys(), LV_OBJ_FLAG_CLICKABLE);
+        
+        // Reset clean screen visual state
+        if (ui_LabelCleanMsg) lv_obj_clear_flag(ui_LabelCleanMsg, LV_OBJ_FLAG_HIDDEN);
+        if (ui_LabelCleanCountdown) lv_label_set_text(ui_LabelCleanCountdown, "");
+
         _ui_screen_change(&ui_PinEntry, LV_SCR_LOAD_ANIM_FADE_ON,
                           500, 0, &ui_PinEntry_screen_init);
         return;
