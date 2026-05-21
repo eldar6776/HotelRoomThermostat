@@ -76,7 +76,7 @@ static uint16_t cb_hreg_write(TRegister *reg, uint16_t val)
             break;
         case MB_REG_UNIX_TIME_H: {
             uint32_t unix_time = ((uint32_t)val << 16) | g_mb.hreg[MB_REG_UNIX_TIME_L];
-            timeval tv = { .tv_sec = unix_time, .tv_usec = 0 };
+            timeval tv = { .tv_sec = static_cast<time_t>(unix_time), .tv_usec = 0 };
             settimeofday(&tv, NULL);
             on_time_synced("Modbus");
             LOG_INFO("[MB] Time synced from Modbus: %lu", unix_time);

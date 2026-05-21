@@ -22,39 +22,56 @@ void wifi_manager_init() {
 }
 
 // ── Logo Upload Handler ───────────────────────────────────────────────────────
-// Registrira /upload_logo POST rutu na WiFiManager web serveru.
-// Poziva se odmah nakon startConfigPortal, dok je wm.server() dostupan.
+// Registrira /upload (GET) i /upload_logo (POST) rute na WiFiManager web serveru.
+// Upload forma je na posebnoj stranici (/upload) — ne ugnježduje se unutar
+// WiFiManagerove forme (HTML zabranjuje <form> unutar <form>).
 static void register_logo_upload_route() {
     if (!wm.server.get()) return;
 
-    // HTML forma koja se injektira kao custom parametar na portal stranicu
-    static WiFiManagerParameter logo_param(
-        "<hr><h3 style='margin-bottom:8px;'>&#128247; Logo baner (480x100 px PNG)</h3>"
-        "<form method='POST' action='/upload_logo' enctype='multipart/form-data'>"
-        "<input type='file' name='logo_file' accept='.png'"
-        "  style='width:100%;padding:6px;margin-bottom:8px;box-sizing:border-box;'><br>"
-        "<button type='submit'"
-        "  style='width:100%;padding:10px;background:#0078d7;color:#fff;"
-        "         border:none;border-radius:5px;font-size:16px;cursor:pointer;'>"
-        "Ucitaj PNG u Flash</button>"
-        "</form>"
-    );
-    // addParameter se smije pozvati samo jednom (pointer mora biti stabilan)
-    static bool s_param_added = false;
-    if (!s_param_added) {
-        wm.addParameter(&logo_param);
-        s_param_added = true;
-    }
+    // Stavljamo marker da smo već registrovali rute (samo jednom)
+    static bool s_routes_registered = false;
+    if (s_routes_registered) return;
+    s_routes_registered = true;
 
-    // POST handler — prima multipart stream i upisuje ga u LittleFS
+    // ── GET /upload — standalone HTML upload forma ──────────────────────────
+    wm.server.get()->on("/upload", HTTP_GET, []() {
+        String html = "<!DOCTYPE html><html><head><meta charset='utf-8'>";
+        html += "<meta name='viewport' content='width=device-width,initial-scale=1'>";
+        html += "<title>Upload Logo</title>";
+        html += "<style>"
+                "body{font-family:Arial;padding:20px;max-width:500px;margin:auto}"
+                "input,button{width:100%;padding:10px;margin:8px 0;box-sizing:border-box}"
+                "button{background:#0078d7;color:#fff;border:none;border-radius:5px;font-size:16px;cursor:pointer}"
+                ".msg{padding:12px;border-radius:5px;margin:10px 0}"
+                ".ok{background:#d4edda;color:#155724}"
+                ".err{background:#f8d7da;color:#721c24}"
+                "</style></head><body>";
+        html += "<h3>&#128247; Logo baner &mdash; 480×100 px PNG</h3>";
+        html += "<form method='POST' action='/upload_logo' enctype='multipart/form-data'>";
+        html += "<input type='file' name='logo_file' accept='.png' required>";
+        html += "<button type='submit'>Ucitaj PNG u Flash</button>";
+        html += "</form>";
+        html += "<p style='color:#666;font-size:14px'>Uredjaj ce se restartovati nakon uploada.</p>";
+        html += "</body></html>";
+        wm.server.get()->send(200, "text/html; charset=utf-8", html);
+    });
+
+    // ── POST /upload_logo — multipart upload handler ───────────────────────
     wm.server.get()->on("/upload_logo", HTTP_POST,
-        /* completion callback */
+        /* completion callback — poziva se kad upload završi */
         []() {
             wm.server.get()->send(200, "text/html; charset=utf-8",
-                "<meta charset='utf-8'>"
-                "<h3>Uspjesno ucitano! Uredjaj se restartuje...</h3>"
-                "<p>Ponovo se povezite za 10 sekundi.</p>");
-            delay(1500);
+                "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                "<style>"
+                "body{font-family:Arial;padding:20px;max-width:500px;margin:auto;text-align:center}"
+                ".msg{padding:20px;background:#d4edda;border-radius:5px;color:#155724}"
+                "</style></head><body>"
+                "<div class='msg'>"
+                "<h3>Uspjesno ucitano!</h3>"
+                "<p>Uredjaj se restartuje za 5 sekundi...</p>"
+                "</div></body></html>");
+            delay(5000);
             ESP.restart();
         },
         /* upload callback — prima svaki chunk multipart podataka */
@@ -63,27 +80,56 @@ static void register_logo_upload_route() {
             static File s_upload_file;
 
             if (upload.status == UPLOAD_FILE_START) {
-                LOG_INFO("[UPLOAD] Start: %s", upload.filename.c_str());
-                LittleFS.remove("/logo_480x100.png"); // obriši staru verziju
+                LOG_INFO("[UPLOAD] Start: %s (%u B ukupno)",
+                         upload.filename.c_str(), upload.totalSize);
+                LittleFS.remove("/logo_480x100.png");
                 s_upload_file = LittleFS.open("/logo_480x100.png", FILE_WRITE);
                 if (!s_upload_file) {
-                    LOG_ERROR("[UPLOAD] Greska: nije moguce otvoriti fajl za pisanje!");
+                    LOG_ERROR("[UPLOAD] Ne mogu otvoriti fajl za pisanje!");
+                } else {
+                    LOG_INFO("[UPLOAD] Fajl otvoren za upis.");
                 }
             } else if (upload.status == UPLOAD_FILE_WRITE) {
                 if (s_upload_file) {
-                    s_upload_file.write(upload.buf, upload.currentSize);
+                    size_t written = s_upload_file.write(upload.buf, upload.currentSize);
+                    if (written != upload.currentSize) {
+                        LOG_ERROR("[UPLOAD] Greska pri upisu: written=%u / currentSize=%u",
+                                  written, upload.currentSize);
+                    }
                 }
             } else if (upload.status == UPLOAD_FILE_END) {
                 if (s_upload_file) {
                     s_upload_file.close();
-                    LOG_INFO("[UPLOAD] Zavrsen, velicina: %u bajta", upload.totalSize);
+                    LOG_INFO("[UPLOAD] Zavrsen, ukupno: %u bajta", upload.totalSize);
                 } else {
-                    LOG_ERROR("[UPLOAD] Greska: fajl nije bio otvoren!");
+                    LOG_ERROR("[UPLOAD] Fajl nije bio otvoren na END!");
+                }
+            } else if (upload.status == UPLOAD_FILE_ABORTED) {
+                LOG_ERROR("[UPLOAD] Upload prekinut (ABORTED)!");
+                if (s_upload_file) {
+                    s_upload_file.close();
+                    LittleFS.remove("/logo_480x100.png");
                 }
             }
         }
     );
-    LOG_INFO("[WiFi] /upload_logo ruta registrovana.");
+
+    // Link na portalu — samo <a>, bez <form>, bez gniježđenja
+    static WiFiManagerParameter upload_link(
+        "<hr>"
+        "<a href='/upload' target='_blank'"
+        "  style='display:block;padding:12px;background:#0078d7;color:#fff;"
+        "         text-align:center;border-radius:5px;text-decoration:none;"
+        "         font-size:16px;margin:8px 0;'>"
+        "&#128247; Upload Logo Baner</a>"
+    );
+    static bool s_param_added = false;
+    if (!s_param_added) {
+        wm.addParameter(&upload_link);
+        s_param_added = true;
+    }
+
+    LOG_INFO("[WiFi] Rute /upload i /upload_logo registrovane.");
 }
 
 static void wifi_manager_stop_portal() {

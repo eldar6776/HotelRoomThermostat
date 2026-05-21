@@ -302,36 +302,96 @@ static void window_popup_destroy(void)
 }
 
 // ── Custom logo display ───────────────────────────────────────────────────────
-// Creates an lv_img widget at (0,0) on ui_TileMain and loads the PNG from
-// LittleFS if present. The widget is created with LV_OBJ_FLAG_HIDDEN when no
-// file exists so it does not consume render time.
+// Reads the PNG file from LittleFS into PSRAM, decodes it manually via lodepng
+// to RGBA8888, then converts to LVGL TRUE_COLOR_ALPHA (RGB565 + α, 3 B/px) so
+// that the image has correct dimensions and working transparency.
 //
-// LVGL FS driver letter 'A' is mapped to /littlefs/ in lv_conf.h, so the
-// path passed to lv_img_set_src must be "A:logo_480x100.png" (no leading slash
-// — the driver prepends the mount path automatically).
+// The descriptor and pixel buffer are allocated once and intentionally never
+// freed — LVGL keeps a reference to them for the lifetime of the logo widget.
+extern "C" unsigned lodepng_decode32(unsigned char** out, unsigned* w, unsigned* h, const unsigned char* in, size_t insize);
+
 static void init_custom_logo(void)
 {
-    // Guard: if called more than once (e.g. screen re-init) just update src
+    // Create image widget once
     if (s_logo_img == NULL) {
         s_logo_img = lv_img_create(ui_TileMain);
         lv_obj_set_pos(s_logo_img, 0, 0);
-        // Keep the logo above the background colour but below all other widgets.
-        // Moving to the front of the parent's child list puts it last in draw
-        // order; we want it first (bottom). lv_obj_move_to_index(0) makes it
-        // the first child that is drawn first (i.e. below the rest).
+        lv_obj_set_size(s_logo_img, 480, 100);
         lv_obj_move_to_index(s_logo_img, 0);
-        // Disable padding / border / bg that lv_img inherits from base
         lv_obj_set_style_pad_all(s_logo_img, 0, LV_PART_MAIN);
         lv_obj_set_style_border_width(s_logo_img, 0, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(s_logo_img, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_radius(s_logo_img, 0, LV_PART_MAIN);
     }
 
-    if (LittleFS.exists("/logo_480x100.png")) {
-        LOG_INFO("[LOGO] Pronadjen custom logo, ucitavam...");
-        lv_img_set_src(s_logo_img, "A:logo_480x100.png");
-        lv_obj_clear_flag(s_logo_img, LV_OBJ_FLAG_HIDDEN);
+    // Try to open logo file
+    File f = LittleFS.open("/logo_480x100.png", FILE_READ);
+    if (!f) {
+        LOG_INFO("[LOGO] Nema fajla, widget skriven.");
+        lv_obj_add_flag(s_logo_img, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
+    size_t fsize = f.size();
+    LOG_INFO("[LOGO] Citam %u B...", fsize);
+    uint8_t *filedata = (uint8_t *)heap_caps_malloc(fsize, MALLOC_CAP_SPIRAM);
+
+    bool ok = false;
+    if (filedata) {
+        f.read(filedata, fsize);
+        f.close();
+
+        unsigned w, h;
+        uint8_t *rgba;
+        unsigned err = lodepng_decode32(&rgba, &w, &h, filedata, fsize);
+        free(filedata);
+
+        if (err == 0) {
+            LOG_INFO("[LOGO] lodepng ok: %u x %u", w, h);
+            size_t px = (size_t)w * h;
+            size_t out_sz = px * 3;
+            uint8_t *out = (uint8_t *)heap_caps_malloc(out_sz, MALLOC_CAP_SPIRAM);
+
+            if (out) {
+                for (size_t i = 0; i < px; i++) {
+                    uint16_t rgb = ((rgba[i*4]   >> 3) << 11)
+                                 | ((rgba[i*4+1] >> 2) <<  5)
+                                 |  (rgba[i*4+2] >> 3);
+                    out[i*3]     =  rgb       & 0xFF;
+                    out[i*3 + 1] = (rgb >> 8) & 0xFF;
+                    out[i*3 + 2] =  rgba[i*4+3];
+                }
+                free(rgba);
+
+                lv_img_dsc_t *dsc = (lv_img_dsc_t *)heap_caps_malloc(sizeof(lv_img_dsc_t), MALLOC_CAP_SPIRAM);
+                if (dsc) {
+                    memset(dsc, 0, sizeof(lv_img_dsc_t));
+                    dsc->header.w  = (int16_t)w;
+                    dsc->header.h  = (int16_t)h;
+                    dsc->header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA;
+                    dsc->data      = out;
+                    dsc->data_size = out_sz;
+                    lv_img_set_src(s_logo_img, dsc);
+                    lv_obj_clear_flag(s_logo_img, LV_OBJ_FLAG_HIDDEN);
+                    LOG_INFO("[LOGO] TRUE_COLOR_ALPHA %ux%u (%u B)", w, h, out_sz);
+                    ok = true;
+                } else {
+                    free(out);
+                    LOG_ERROR("[LOGO] malloc dsc fail");
+                }
+            } else {
+                free(rgba);
+                LOG_ERROR("[LOGO] malloc out fail");
+            }
+        } else {
+            LOG_ERROR("[LOGO] lodepng err %u", err);
+        }
     } else {
-        LOG_INFO("[LOGO] Nema logo fajla na LittleFS, widget skriven.");
+        f.close();
+        LOG_ERROR("[LOGO] malloc file buf fail");
+    }
+
+    if (!ok) {
         lv_obj_add_flag(s_logo_img, LV_OBJ_FLAG_HIDDEN);
     }
 }
