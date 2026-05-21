@@ -17,7 +17,6 @@ lv_obj_t * ui_ButtonMur = NULL;
 lv_obj_t * ui_LabelMur = NULL;
 lv_obj_t * ui_ButtonGoToThermostat = NULL;
 lv_obj_t * ui_LabelTermostat = NULL;
-lv_obj_t * ui_ButtonHiddenMenu = NULL;
 // event funtions
 void ui_event_ButtonDnd(lv_event_t * e)
 {
@@ -43,15 +42,6 @@ void ui_event_ButtonGoToThermostat(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         _ui_screen_change(&ui_Thermostat, LV_SCR_LOAD_ANIM_NONE, 100, 0, &ui_Thermostat_screen_init);
-    }
-}
-
-void ui_event_ButtonHiddenMenu(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_LONG_PRESSED) {
-        _ui_screen_change(&ui_PinEntry, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_PinEntry_screen_init);
     }
 }
 
@@ -230,18 +220,9 @@ void ui_Main_screen_init(void)
     lv_label_set_text(ui_LabelTermostat, "TERMO");
     lv_obj_set_style_text_font(ui_LabelTermostat, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_ButtonHiddenMenu = lv_btn_create(ui_TileMain);
-    lv_obj_set_width(ui_ButtonHiddenMenu, 50);
-    lv_obj_set_height(ui_ButtonHiddenMenu, 50);
-    lv_obj_add_flag(ui_ButtonHiddenMenu, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
-    lv_obj_clear_flag(ui_ButtonHiddenMenu, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_bg_color(ui_ButtonHiddenMenu, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_ButtonHiddenMenu, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
     lv_obj_add_event_cb(ui_ButtonDnd, ui_event_ButtonDnd, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_ButtonMur, ui_event_ButtonMur, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_ButtonGoToThermostat, ui_event_ButtonGoToThermostat, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ButtonHiddenMenu, ui_event_ButtonHiddenMenu, LV_EVENT_ALL, NULL);
 
 }
 
@@ -262,7 +243,6 @@ void ui_Main_screen_destroy(void)
     ui_LabelMur = NULL;
     ui_ButtonGoToThermostat = NULL;
     ui_LabelTermostat = NULL;
-    ui_ButtonHiddenMenu = NULL;
 
 }
 

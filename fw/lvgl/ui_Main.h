@@ -29,8 +29,6 @@ extern lv_obj_t * ui_LabelMur;
 extern void ui_event_ButtonGoToThermostat(lv_event_t * e);
 extern lv_obj_t * ui_ButtonGoToThermostat;
 extern lv_obj_t * ui_LabelTermostat;
-extern void ui_event_ButtonHiddenMenu(lv_event_t * e);
-extern lv_obj_t * ui_ButtonHiddenMenu;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

@@ -92,6 +92,15 @@ void ui_event_BtnNext2(lv_event_t * e)
     }
 }
 
+void ui_event_DropSelectTheme(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_VALUE_CHANGED) {
+        action_theme_changed(e);
+    }
+}
+
 // build funtions
 
 void ui_Settings2_screen_init(void)
@@ -218,7 +227,7 @@ void ui_Settings2_screen_init(void)
     lv_obj_set_style_text_font(ui_LabelBtnNext2, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_DropSelectTheme = lv_dropdown_create(ui_Settings2);
-    lv_dropdown_set_options(ui_DropSelectTheme, "NONE\nAURORA\nLOGO");
+    lv_dropdown_set_options(ui_DropSelectTheme, "NONE\nLOGO");
     lv_obj_set_width(ui_DropSelectTheme, 200);
     lv_obj_set_height(ui_DropSelectTheme, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_x(ui_DropSelectTheme, -20);
@@ -240,6 +249,8 @@ void ui_Settings2_screen_init(void)
     lv_obj_add_event_cb(ui_BtnOffsetInc, ui_event_BtnOffsetInc, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnSave2, ui_event_BtnSave2, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnNext2, ui_event_BtnNext2, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_DropSelectTheme, ui_event_DropSelectTheme, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Settings2, settings2_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
 
 }
 

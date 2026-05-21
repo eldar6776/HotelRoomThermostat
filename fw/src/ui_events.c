@@ -25,6 +25,7 @@ extern lv_obj_t *ui_LabelCurrentTemp;
 extern lv_obj_t *ui_LabelRoomTemp;
 extern lv_obj_t *ui_ImageHeatStatus;
 extern lv_obj_t *ui_ImageCoolStatus;
+extern lv_obj_t *ui_TileMain;
 extern lv_obj_t *ui_PinEntry;
 extern lv_obj_t *ui_PinTextArea;
 extern lv_obj_t *ui_Settings1;
@@ -41,6 +42,7 @@ extern lv_obj_t *ui_SliderBrightLow;
 extern lv_obj_t *ui_DropTimeout;
 extern lv_obj_t *ui_SpinModbusAddr;
 extern lv_obj_t *ui_SwitchStartAp;
+extern lv_obj_t *ui_DropSelectTheme;
 extern lv_obj_t *ui_ButtonDnd;
 extern lv_obj_t *ui_ButtonMur;
 
@@ -59,6 +61,15 @@ static void ui_Settings3_screen_init_wrapped(void)
     // Map NVS values (0-1023) → slider range (0-100)
     lv_slider_set_value(ui_SliderBrightHigh, g_sys_cfg.bright_high * 100 / 1023, LV_ANIM_OFF);
     lv_slider_set_value(ui_SliderBrightLow,  g_sys_cfg.bright_low  * 100 / 1023, LV_ANIM_OFF);
+}
+
+// Called every time Settings2 screen becomes visible — sync theme dropdown from NVS
+void settings2_loaded_cb(lv_event_t *e)
+{
+    (void)e;
+    if (ui_DropSelectTheme) {
+        lv_dropdown_set_selected(ui_DropSelectTheme, g_sys_cfg.theme_select);
+    }
 }
 
 // Called every time Settings3 screen becomes visible (swipe or direct load)
@@ -137,13 +148,6 @@ void action_mur_toggled(lv_event_t * e)
     modbus_set_mur_coil(checked);
 }
 
-void action_hidden_menu_press(lv_event_t *e)
-{
-    (void)e;
-    _ui_screen_change(&ui_PinEntry, LV_SCR_LOAD_ANIM_FADE_ON,
-                      500, 0, &ui_PinEntry_screen_init);
-}
-
 // ═════════════════════════════════════════════════════════════════════════════
 //  Thermostat Tile
 // ═════════════════════════════════════════════════════════════════════════════
@@ -158,6 +162,14 @@ void action_arc_temp_changed(lv_event_t *e)
     lv_label_set_text_fmt(ui_LabelTargetTemp, "%d°", val);
     hvac_set_setpoint(val);
     inactivity_reset(); // Spriječi gašenje ekrana dok korisnik podešava
+}
+
+void thermostat_loaded_cb(lv_event_t *e)
+{
+    (void)e;
+    if (ui_ArcTemp) {
+        lv_arc_set_range(ui_ArcTemp, g_sys_cfg.temp_min, g_sys_cfg.temp_max);
+    }
 }
 
 void action_fan_speed_change(lv_event_t *e)
@@ -188,19 +200,41 @@ void action_fan_speed_change(lv_event_t *e)
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  Clean Screen (Tile 4)
+//  Press → timer starts immediately.
+//  Hold 10 s → cancel timer, open PIN entry.
+//  Release before 10 s → timer keeps running (normal clean).
 // ═════════════════════════════════════════════════════════════════════════════
+
+static unsigned long s_clean_press_ms = 0;
+
+void action_clean_pressed(lv_event_t *e)
+{
+    (void)e;
+    if (s_clean_timer) return;   // already running (second press)
+
+    s_clean_press_ms = millis();
+    s_clean_secs = 60;
+    lv_obj_add_flag(lv_layer_sys(), LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(ui_LabelCleanMsg, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text_fmt(ui_LabelCleanCountdown, "%u", s_clean_secs);
+    s_clean_timer = lv_timer_create(clean_timer_cb, 1000, NULL);
+}
 
 void action_clean_start(lv_event_t *e)
 {
     (void)e;
-    if (s_clean_timer) return;
-
-    s_clean_secs = 60;
-    lv_obj_add_flag(lv_layer_sys(), LV_OBJ_FLAG_CLICKABLE);
-    
-    lv_obj_add_flag(ui_LabelCleanMsg, LV_OBJ_FLAG_HIDDEN); // Sakriva glavnu poruku
-    lv_label_set_text_fmt(ui_LabelCleanCountdown, "%u", s_clean_secs);
-    s_clean_timer = lv_timer_create(clean_timer_cb, 1000, NULL);
+    // Released — check if held long enough for hidden PIN entry
+    unsigned long held = millis() - s_clean_press_ms;
+    if (held >= 10000UL) {
+        // 10 s hold → cancel timer, open PIN
+        lv_timer_del(s_clean_timer);
+        s_clean_timer = NULL;
+        lv_obj_clear_flag(lv_layer_sys(), LV_OBJ_FLAG_CLICKABLE);
+        _ui_screen_change(&ui_PinEntry, LV_SCR_LOAD_ANIM_FADE_ON,
+                          500, 0, &ui_PinEntry_screen_init);
+        return;
+    }
+    // Otherwise timer keeps running (started in action_clean_pressed)
 }
 
 // ── Settings UI Synchronization ──────────────────────────────────────────────
@@ -219,7 +253,7 @@ void ui_sync_settings_to_widgets(void)
     LOG_C_INFO("[UI] Syncing widgets to RAM config...");
 
     // Screen 1
-    if (ui_DropMinTemp) lv_dropdown_set_selected(ui_DropMinTemp, (uint16_t)(g_sys_cfg.temp_min - 15));
+    if (ui_DropMinTemp) lv_dropdown_set_selected(ui_DropMinTemp, (uint16_t)(g_sys_cfg.temp_min - 10));
     if (ui_DropMaxTemp) lv_dropdown_set_selected(ui_DropMaxTemp, (uint16_t)(g_sys_cfg.temp_max - 25));
     if (ui_DropMode)    lv_dropdown_set_selected(ui_DropMode,    g_sys_cfg.hvac_mode);
     
@@ -255,6 +289,7 @@ void ui_sync_settings_to_widgets(void)
         }
     }
     if (ui_SpinModbusAddr) lv_spinbox_set_value(ui_SpinModbusAddr, g_sys_cfg.modbus_addr);
+    if (ui_DropSelectTheme) lv_dropdown_set_selected(ui_DropSelectTheme, g_sys_cfg.theme_select);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -286,7 +321,7 @@ void action_min_temp_changed(lv_event_t *e)
     (void)e;
     inactivity_reset();
     uint16_t sel = lv_dropdown_get_selected(ui_DropMinTemp);
-    g_sys_cfg.temp_min = (int16_t)(15 + sel); // Corrected base
+    g_sys_cfg.temp_min = (int16_t)(10 + sel);
     g_dirty_flags |= FLAG_TEMP_MIN;
 }
 
@@ -359,6 +394,22 @@ void action_offset_changed(lv_event_t *e)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+//  Settings 2 — Theme Selection
+// ═════════════════════════════════════════════════════════════════════════════
+
+extern void apply_theme(uint8_t theme);
+
+void action_theme_changed(lv_event_t *e)
+{
+    (void)e;
+    inactivity_reset();
+    uint16_t sel = lv_dropdown_get_selected(ui_DropSelectTheme);
+    if (sel > 1) sel = 0;
+    g_sys_cfg.theme_select = (uint8_t)sel;
+    g_dirty_flags |= FLAG_THEME_SELECT;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 //  Settings 3 — System
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -416,6 +467,7 @@ void action_save_and_exit(lv_event_t *e)
     inactivity_set_on_settings(false);
     _ui_screen_change(&ui_Main, LV_SCR_LOAD_ANIM_FADE_ON,
                       500, 0, &ui_Main_screen_init);
+    apply_theme(g_sys_cfg.theme_select);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

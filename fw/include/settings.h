@@ -16,7 +16,8 @@ typedef enum {
     FLAG_BRIGHT_LOW    = (1 <<  8),
     FLAG_TIMEOUT       = (1 <<  9),
     FLAG_MODBUS_ADDR   = (1 << 10),
-    FLAG_TARGET_TEMP   = (1 << 11)
+    FLAG_TARGET_TEMP   = (1 << 11),
+    FLAG_THEME_SELECT  = (1 << 12)
 } settings_flag_t;
 
 // ── System configuration RAM structure ───────────────────────────────────────
@@ -33,6 +34,7 @@ typedef struct {
     uint16_t bright_low;         // backlight 0-1023 (night)
     uint8_t  timeout_s;          // inactivity timeout (30 s default)
     uint8_t  modbus_addr;        // 1-247
+    uint8_t  theme_select;       // 0=NONE, 1=AURORA, 2=LOGO
 } sys_config_t;
 
 // ── Inactivity timeout ────────────────────────────────────────────────────────

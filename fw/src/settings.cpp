@@ -94,6 +94,7 @@ void settings_init(void)
     g_sys_cfg.bright_low        = 300;
     g_sys_cfg.timeout_s         = INACTIVITY_TIMEOUT_DEFAULT_S;
     g_sys_cfg.modbus_addr       = 1;
+    g_sys_cfg.theme_select      = 0;
 
     // Open NVS in read-write mode. This will create the namespace if it's the
     // first boot. Opening in read-only (true) would fail on a fresh device.
@@ -110,6 +111,8 @@ void settings_init(void)
     g_sys_cfg.bright_low        = (uint16_t)s_prefs.getUInt("bright_low",         g_sys_cfg.bright_low);
     g_sys_cfg.timeout_s         = (uint8_t) s_prefs.getUInt("timeout_s",          g_sys_cfg.timeout_s);
     g_sys_cfg.modbus_addr       = (uint8_t) s_prefs.getUInt("modbus_addr",        g_sys_cfg.modbus_addr);
+    g_sys_cfg.theme_select      = (uint8_t) s_prefs.getUChar("theme",             g_sys_cfg.theme_select);
+    if (g_sys_cfg.theme_select > 1) g_sys_cfg.theme_select = 0;
     s_prefs.end();
 
     // Clamp modbus address
@@ -162,6 +165,8 @@ void settings_save_dirty(void)
         s_prefs.putUInt("timeout_s",  g_sys_cfg.timeout_s);
     if (g_dirty_flags & FLAG_MODBUS_ADDR)
         s_prefs.putUInt("modbus_addr",g_sys_cfg.modbus_addr);
+    if (g_dirty_flags & FLAG_THEME_SELECT)
+        s_prefs.putUChar("theme",     g_sys_cfg.theme_select);
 
     s_prefs.end();
     LOG_INFO("[CFG] Saved dirty flags: 0x%04X", g_dirty_flags);

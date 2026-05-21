@@ -53,6 +53,18 @@ static bool      s_window_was_open = false;
 // ── Custom logo (LittleFS PNG) ────────────────────────────────────────────────
 static lv_obj_t *s_logo_img = NULL;
 
+extern "C" void apply_theme(uint8_t theme)
+{
+    switch (theme) {
+        case 0: // NONE
+            if (s_logo_img) lv_obj_add_flag(s_logo_img, LV_OBJ_FLAG_HIDDEN);
+            break;
+        case 1: // LOGO
+            if (s_logo_img) lv_obj_clear_flag(s_logo_img, LV_OBJ_FLAG_HIDDEN);
+            break;
+    }
+}
+
 // ── Time Sync State Machine ───────────────────────────────────────────────────
 static bool s_is_clock_set = false;
 static unsigned long s_last_sync_ms = 0;
@@ -442,6 +454,8 @@ void setup(void)
 
     // 4.1 Load custom logo from LittleFS (crta se na (0,0), crna pozadina)
     init_custom_logo();
+    // 4.2 Apply selected theme (NONE / AURORA / LOGO)
+    apply_theme(g_sys_cfg.theme_select);
     LOG_INFO("[MAIN] Custom logo init done");
 
     // Try one lv_timer_handler call here to catch crash early

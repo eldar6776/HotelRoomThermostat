@@ -226,6 +226,7 @@ void ui_Thermostat_screen_init(void)
     lv_obj_add_event_cb(ui_BtnNextThermostat, ui_event_BtnNextThermostat, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnFan, ui_event_BtnFan, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnPrevThermostat, ui_event_BtnPrevThermostat, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Thermostat, thermostat_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
 
 }
 

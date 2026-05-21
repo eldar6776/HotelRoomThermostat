@@ -14,6 +14,7 @@ void action_dnd_toggled(lv_event_t * e);
 void action_mur_toggled(lv_event_t * e);
 void action_arc_temp_changed(lv_event_t * e);
 void action_fan_speed_change(lv_event_t * e);
+void action_clean_pressed(lv_event_t * e);
 void action_clean_start(lv_event_t * e);
 void action_validate_pin(lv_event_t * e);
 void action_min_temp_changed(lv_event_t * e);
@@ -24,12 +25,15 @@ void action_save_and_exit(lv_event_t * e);
 void action_hysteresis_changed(lv_event_t * e);
 void action_stage_step_changed(lv_event_t * e);
 void action_offset_changed(lv_event_t * e);
+void thermostat_loaded_cb(lv_event_t * e);
+void settings2_loaded_cb(lv_event_t * e);
 void settings3_loaded_cb(lv_event_t * e);
 void action_bright_high_changed(lv_event_t * e);
 void action_bright_low_changed(lv_event_t * e);
 void action_timeout_changed(lv_event_t * e);
 void action_modbus_changed(lv_event_t * e);
 void action_start_wifi_manager(lv_event_t * e);
+void action_theme_changed(lv_event_t * e);
 
 #ifdef __cplusplus
 } /*extern "C"*/
