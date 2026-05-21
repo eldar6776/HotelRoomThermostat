@@ -3,6 +3,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <WiFi.h>
+#include <LittleFS.h>
 #include <lvgl.h>
 
 #include "hal.h"
@@ -48,6 +49,9 @@ static unsigned long s_boot_ms   = 0;
 // ── Window open popup ─────────────────────────────────────────────────────────
 static lv_obj_t *s_window_popup = NULL;
 static bool      s_window_was_open = false;
+
+// ── Custom logo (LittleFS PNG) ────────────────────────────────────────────────
+static lv_obj_t *s_logo_img = NULL;
 
 // ── Time Sync State Machine ───────────────────────────────────────────────────
 static bool s_is_clock_set = false;
@@ -297,6 +301,41 @@ static void window_popup_destroy(void)
     }
 }
 
+// ── Custom logo display ───────────────────────────────────────────────────────
+// Creates an lv_img widget at (0,0) on ui_TileMain and loads the PNG from
+// LittleFS if present. The widget is created with LV_OBJ_FLAG_HIDDEN when no
+// file exists so it does not consume render time.
+//
+// LVGL FS driver letter 'A' is mapped to /littlefs/ in lv_conf.h, so the
+// path passed to lv_img_set_src must be "A:logo_480x100.png" (no leading slash
+// — the driver prepends the mount path automatically).
+static void init_custom_logo(void)
+{
+    // Guard: if called more than once (e.g. screen re-init) just update src
+    if (s_logo_img == NULL) {
+        s_logo_img = lv_img_create(ui_TileMain);
+        lv_obj_set_pos(s_logo_img, 0, 0);
+        // Keep the logo above the background colour but below all other widgets.
+        // Moving to the front of the parent's child list puts it last in draw
+        // order; we want it first (bottom). lv_obj_move_to_index(0) makes it
+        // the first child that is drawn first (i.e. below the rest).
+        lv_obj_move_to_index(s_logo_img, 0);
+        // Disable padding / border / bg that lv_img inherits from base
+        lv_obj_set_style_pad_all(s_logo_img, 0, LV_PART_MAIN);
+        lv_obj_set_style_border_width(s_logo_img, 0, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(s_logo_img, LV_OPA_TRANSP, LV_PART_MAIN);
+    }
+
+    if (LittleFS.exists("/logo_480x100.png")) {
+        LOG_INFO("[LOGO] Pronadjen custom logo, ucitavam...");
+        lv_img_set_src(s_logo_img, "A:logo_480x100.png");
+        lv_obj_clear_flag(s_logo_img, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        LOG_INFO("[LOGO] Nema logo fajla na LittleFS, widget skriven.");
+        lv_obj_add_flag(s_logo_img, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 // ── setup ────────────────────────────────────────────────────────────────────
 void setup(void)
 {
@@ -309,6 +348,14 @@ void setup(void)
     LOG_INFO("CPU: %lu MHz   PSRAM: %.1f MB free",
              getCpuFrequencyMhz(),
              heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1048576.0f);
+
+    // 0. Mount LittleFS (format on first boot if empty)
+    if (!LittleFS.begin(true, "/littlefs")) {
+        LOG_ERROR("[FS] LittleFS mount FAILED — logo upload nedostupan!");
+    } else {
+        LOG_INFO("[FS] LittleFS mounted, free: %u bajta",
+                 LittleFS.totalBytes() - LittleFS.usedBytes());
+    }
 
     // 1. Load NVS configuration
     settings_init();
@@ -332,6 +379,10 @@ void setup(void)
     LOG_INFO("[MAIN] Free heap: %.1f KB  PSRAM: %.1f MB",
              heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024.0f,
              heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1048576.0f);
+
+    // 4.1 Load custom logo from LittleFS (crta se na (0,0), crna pozadina)
+    init_custom_logo();
+    LOG_INFO("[MAIN] Custom logo init done");
 
     // Try one lv_timer_handler call here to catch crash early
     LOG_INFO("[MAIN] First lv_timer_handler call...");

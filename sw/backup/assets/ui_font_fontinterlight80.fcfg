@@ -1,0 +1,16 @@
+{
+  "codename": "fontinterlight80",
+  "ttf_path": "/assets/Inter-VariableFont_opsz,wght.ttf",
+  "bin_path": "/assets\\ui_font_fontinterlight80.bin",
+  "c_path": "/assets\\ui_font_fontinterlight80.c",
+  "cfg_path": "/assets\\ui_font_fontinterlight80.fcfg",
+  "size": 80,
+  "bpp": 4,
+  "letters": 0,
+  "ranges": [
+    "0x20-0x7f"
+  ],
+  "symbols": "0123456789:°",
+  "customparams": "--no-compress --no-prefilter",
+  "uploaded": false
+}

@@ -246,11 +246,16 @@
 #define LV_USE_GRID 1
 
 /*-- 3rd party --*/
-#define LV_USE_FS_STDIO  0
+#define LV_USE_FS_STDIO  1
+#if LV_USE_FS_STDIO
+    #define LV_FS_STDIO_LETTER     'A'
+    #define LV_FS_STDIO_PATH       "/littlefs/"
+    #define LV_FS_STDIO_CACHE_SIZE 0
+#endif
 #define LV_USE_FS_POSIX  0
 #define LV_USE_FS_WIN32  0
 #define LV_USE_FS_FATFS  0
-#define LV_USE_PNG       0
+#define LV_USE_PNG       1
 #define LV_USE_BMP       0
 #define LV_USE_SJPG      0
 #define LV_USE_GIF       0
