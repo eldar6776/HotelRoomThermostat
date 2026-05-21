@@ -251,7 +251,7 @@ static void update_outside_temp_label(void)
         // Cast uint16_t -> int16_t -> int da bi ispravno očitali negativne temperature (npr. -5°C)
         int out_temp = (int)(int16_t)g_mb.hreg[MB_REG_OUTSIDE_TEMP];
         char temp_buf[32];
-        snprintf(temp_buf, sizeof(temp_buf), "Aussen:     %d°C", out_temp);
+        snprintf(temp_buf, sizeof(temp_buf), "Aussen:  %d°C", out_temp);
         lv_label_set_text(ui_LabelOutdoorTemp, temp_buf);
     } else {
         lv_obj_add_flag(ui_LabelOutdoorTemp, LV_OBJ_FLAG_HIDDEN);
