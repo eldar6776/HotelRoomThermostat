@@ -45,6 +45,10 @@ static unsigned long t_clock     = 0;
 static unsigned long t_inact     = 0;
 static unsigned long s_boot_ms   = 0;
 
+// ── Window open popup ─────────────────────────────────────────────────────────
+static lv_obj_t *s_window_popup = NULL;
+static bool      s_window_was_open = false;
+
 // ── Time Sync State Machine ───────────────────────────────────────────────────
 static bool s_is_clock_set = false;
 static unsigned long s_last_sync_ms = 0;
@@ -150,10 +154,6 @@ static void update_temp_labels(void)
     snprintf(temp_buf, sizeof(temp_buf), "Innen:  %.0f°C", roundf(t));
     lv_label_set_text(ui_LabelRoomTemp, temp_buf);
 
-    // Window open warning — no UI element currently assigned
-    if (hvac_is_window_open()) {
-    } else {
-    }
 }
 
 // ── HVAC mode images ─────────────────────────────────────────────────────────
@@ -239,6 +239,61 @@ static void update_outside_temp_label(void)
         lv_label_set_text(ui_LabelOutdoorTemp, temp_buf);
     } else {
         lv_obj_add_flag(ui_LabelOutdoorTemp, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+// ── Window open popup ──────────────────────────────────────────────────────────
+static void window_popup_btn_cb(lv_event_t *e)
+{
+    (void)e;
+    if (s_window_popup) {
+        lv_obj_del(s_window_popup);
+        s_window_popup = NULL;
+    }
+}
+
+static void window_popup_create(void)
+{
+    if (s_window_popup) return;
+
+    s_window_popup = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_window_popup, 440, 320);
+    lv_obj_center(s_window_popup);
+    lv_obj_set_style_border_width(s_window_popup, 3, 0);
+    lv_obj_set_style_border_color(s_window_popup, lv_color_hex(0xFF0000), 0);
+
+    lv_obj_t *label_title = lv_label_create(s_window_popup);
+    lv_obj_set_style_text_color(label_title, lv_color_hex(0xFF0000), 0);
+    lv_obj_set_style_text_font(label_title, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_align(label_title, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_text(label_title, "ACHTUNG !!!");
+    lv_obj_set_width(label_title, 400);
+    lv_obj_align(label_title, LV_ALIGN_CENTER, 0, -50);
+
+    lv_obj_t *label_body = lv_label_create(s_window_popup);
+    lv_obj_set_style_text_font(label_body, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_align(label_body, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_text(label_body, "DIE KLIMAANLAGE IST DEAKTIVIERT.\nBITTE SCHLIESSEN SIE TUEREN\nUND FENSTER.");
+    lv_label_set_long_mode(label_body, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(label_body, 380);
+    lv_obj_align(label_body, LV_ALIGN_CENTER, 0, 30);
+
+    lv_obj_t *btn = lv_btn_create(s_window_popup);
+    lv_obj_set_width(btn, 180);
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -25);
+    lv_obj_add_event_cb(btn, window_popup_btn_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *btn_label = lv_label_create(btn);
+    lv_obj_set_style_text_font(btn_label, &lv_font_montserrat_16, 0);
+    lv_label_set_text(btn_label, "SCHLIESSEN");
+    lv_obj_center(btn_label);
+}
+
+static void window_popup_destroy(void)
+{
+    if (s_window_popup) {
+        lv_obj_del(s_window_popup);
+        s_window_popup = NULL;
     }
 }
 
@@ -378,6 +433,28 @@ void loop(void)
 
     // Deferred NVS save — fires once, 3 s after the last settings change
     settings_tick();
+
+    // Window open popup management
+    bool window_open = hvac_is_window_open();
+    if (window_open != s_window_was_open) {
+        s_window_was_open = window_open;
+        if (window_open)
+            window_popup_create();
+        else
+            window_popup_destroy();
+    }
+
+    // Show/hide popup based on active screen (hidden on settings)
+    if (s_window_popup) {
+        lv_obj_t *active = lv_scr_act();
+        bool on_settings = (active == ui_Settings1) ||
+                           (active == ui_Settings2) ||
+                           (active == ui_Settings3);
+        if (on_settings)
+            lv_obj_add_flag(s_window_popup, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_clear_flag(s_window_popup, LV_OBJ_FLAG_HIDDEN);
+    }
 
     // Small yield to prevent WDT reset
     delay(2);
