@@ -185,6 +185,7 @@ void ui_Settings1_screen_init(void)
     lv_obj_add_event_cb(ui_DropCtrlType, ui_event_DropCtrlType, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnSave1, ui_event_BtnSave1, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnNext1, ui_event_BtnNext1, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Settings1, settings1_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
 
 }
 
