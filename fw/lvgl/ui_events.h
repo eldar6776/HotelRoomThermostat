@@ -26,6 +26,7 @@ void action_hysteresis_changed(lv_event_t * e);
 void action_stage_step_changed(lv_event_t * e);
 void action_offset_changed(lv_event_t * e);
 void thermostat_loaded_cb(lv_event_t * e);
+void settings1_loaded_cb(lv_event_t * e);
 void settings2_loaded_cb(lv_event_t * e);
 void settings3_loaded_cb(lv_event_t * e);
 void action_bright_high_changed(lv_event_t * e);
