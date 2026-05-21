@@ -53,6 +53,9 @@ static uint16_t cb_hreg_write(TRegister *reg, uint16_t val)
 {
     uint16_t reg_index = reg->address.address;
     
+    // Safety check against Buffer Overflow
+    if (reg_index >= MB_HREG_COUNT) return val;
+    
     switch (reg_index) {
         case MB_REG_TARGET_TEMP:
             val = constrain(val, TEMP_SETPOINT_MIN * 10, TEMP_SETPOINT_MAX * 10);
@@ -82,6 +85,35 @@ static uint16_t cb_hreg_write(TRegister *reg, uint16_t val)
             LOG_INFO("[MB] Time synced from Modbus: %lu", unix_time);
             break;
         }
+        case MB_REG_TEMP_MIN:
+            val = constrain(val, 10, 24);
+            break;
+        case MB_REG_TEMP_MAX:
+            val = constrain(val, 25, 40);
+            break;
+        case MB_REG_HYSTERESIS:
+            val = constrain(val, 2, 20);
+            break;
+        case MB_REG_STAGE_STEP:
+            val = constrain(val, 5, 25);
+            break;
+        case MB_REG_SENSOR_OFFSET:
+            val = constrain((int16_t)val, -50, 50);
+            break;
+        case MB_REG_BRIGHT_HIGH:
+            val = constrain(val, 0, 1023);
+            break;
+        case MB_REG_BRIGHT_LOW:
+            val = constrain(val, 0, 1023);
+            break;
+        case MB_REG_TIMEOUT_S:
+            if (val != 30 && val != 60 && val != 120) {
+                val = 30; // fallback to default
+            }
+            break;
+        case MB_REG_THEME_SELECT:
+            if (val > 1) val = 0;
+            break;
         default:
             break;
     }
@@ -122,15 +154,9 @@ void modbus_init(uint8_t slave_addr)
     // Pre-load default values
     // Load values from NVS settings where available, otherwise use defaults.
     // This ensures that settings persist after a restart.
-    g_mb.hreg[MB_REG_TARGET_TEMP] = (uint16_t)(g_sys_cfg.target_temp * 10); // ✅ LOAD FROM NVS
-    g_mb.hreg[MB_REG_HVAC_MODE]   = g_sys_cfg.hvac_mode; // ✅ LOAD FROM NVS
     g_mb.hreg[MB_REG_FAN_SPEED]   = FAN_AUTO; // Default fan speed
-
-    g_mb.hreg[MB_REG_RELAY_MODE]  = g_sys_cfg.ctrl_type; // ✅ LOAD FROM NVS
-
-    for (int i = 0; i < MB_HREG_COUNT; i++) {
-        s_mb.Hreg(i, g_mb.hreg[i]);
-    }
+    s_mb.Hreg(MB_REG_FAN_SPEED, FAN_AUTO);
+    modbus_sync_from_settings();
 
     // Register write callbacks so we react to master writes
     s_mb.onSetHreg(0, cb_hreg_write, MB_HREG_COUNT);
@@ -190,6 +216,35 @@ void modbus_set_slave_addr(uint8_t addr)
     if (addr < 1 || addr > 247) return;
     s_mb.slave(addr);
     LOG_INFO("[MB] Slave address changed to %u", addr);
+}
+
+void modbus_sync_from_settings(void)
+{
+    g_mb.hreg[MB_REG_TARGET_TEMP]   = (uint16_t)(g_sys_cfg.target_temp * 10);
+    g_mb.hreg[MB_REG_HVAC_MODE]     = g_sys_cfg.hvac_mode;
+    g_mb.hreg[MB_REG_RELAY_MODE]    = g_sys_cfg.ctrl_type;
+    g_mb.hreg[MB_REG_TEMP_MIN]      = g_sys_cfg.temp_min;
+    g_mb.hreg[MB_REG_TEMP_MAX]      = g_sys_cfg.temp_max;
+    g_mb.hreg[MB_REG_HYSTERESIS]    = g_sys_cfg.hysteresis_x10;
+    g_mb.hreg[MB_REG_STAGE_STEP]    = g_sys_cfg.stage_step_x10;
+    g_mb.hreg[MB_REG_SENSOR_OFFSET] = g_sys_cfg.sensor_offset_x10;
+    g_mb.hreg[MB_REG_BRIGHT_HIGH]   = g_sys_cfg.bright_high;
+    g_mb.hreg[MB_REG_BRIGHT_LOW]    = g_sys_cfg.bright_low;
+    g_mb.hreg[MB_REG_TIMEOUT_S]     = g_sys_cfg.timeout_s;
+    g_mb.hreg[MB_REG_THEME_SELECT]  = g_sys_cfg.theme_select;
+
+    s_mb.Hreg(MB_REG_TARGET_TEMP,   g_mb.hreg[MB_REG_TARGET_TEMP]);
+    s_mb.Hreg(MB_REG_HVAC_MODE,     g_mb.hreg[MB_REG_HVAC_MODE]);
+    s_mb.Hreg(MB_REG_RELAY_MODE,    g_mb.hreg[MB_REG_RELAY_MODE]);
+    s_mb.Hreg(MB_REG_TEMP_MIN,      g_mb.hreg[MB_REG_TEMP_MIN]);
+    s_mb.Hreg(MB_REG_TEMP_MAX,      g_mb.hreg[MB_REG_TEMP_MAX]);
+    s_mb.Hreg(MB_REG_HYSTERESIS,    g_mb.hreg[MB_REG_HYSTERESIS]);
+    s_mb.Hreg(MB_REG_STAGE_STEP,    g_mb.hreg[MB_REG_STAGE_STEP]);
+    s_mb.Hreg(MB_REG_SENSOR_OFFSET, g_mb.hreg[MB_REG_SENSOR_OFFSET]);
+    s_mb.Hreg(MB_REG_BRIGHT_HIGH,   g_mb.hreg[MB_REG_BRIGHT_HIGH]);
+    s_mb.Hreg(MB_REG_BRIGHT_LOW,    g_mb.hreg[MB_REG_BRIGHT_LOW]);
+    s_mb.Hreg(MB_REG_TIMEOUT_S,     g_mb.hreg[MB_REG_TIMEOUT_S]);
+    s_mb.Hreg(MB_REG_THEME_SELECT,  g_mb.hreg[MB_REG_THEME_SELECT]);
 }
 
 // ── modbus_update_inputs ──────────────────────────────────────────────────────

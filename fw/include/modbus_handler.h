@@ -10,10 +10,21 @@
 #define MB_REG_OUTSIDE_TEMP  3    // 40004 – Outside temp (raw °C)
 #define MB_REG_UNIX_TIME_L   4    // 40005 - UNIX timestamp (low word)
 #define MB_REG_UNIX_TIME_H   5    // 40006 - UNIX timestamp (high word)
-#define MB_REG_RELAY_MODE    21  // 40022 – 0=3-speed,1=1-relay
-#define MB_HREG_COUNT        22  // total holding registers (0-21)
-#define MB_COIL_DND          0   // 00001 – Do Not Disturb
-#define MB_COIL_MUR          1   // 00002 – Make Up Room
+#define MB_REG_TEMP_MIN      6    // 40007 – Min setpoint temp (°C)
+#define MB_REG_TEMP_MAX      7    // 40008 – Max setpoint temp (°C)
+#define MB_REG_HYSTERESIS    8    // 40009 – Hysteresis x10 (°C)
+#define MB_REG_STAGE_STEP    9    // 40010 – Stage step x10 (°C)
+#define MB_REG_SENSOR_OFFSET 10   // 40011 – NTC offset x10 (°C)
+#define MB_REG_BRIGHT_HIGH   11   // 40012 – Brightness high (0-1023)
+#define MB_REG_BRIGHT_LOW    12   // 40013 – Brightness low (0-1023)
+#define MB_REG_TIMEOUT_S     13   // 40014 – Screensaver timeout (s)
+#define MB_REG_THEME_SELECT  14   // 40015 – Theme selection (0=NONE, 1=LOGO)
+#define MB_REG_RELAY_MODE    21   // 40022 – 0=3-speed,1=1-relay
+#define MB_REG_WEATHER_START 29   // 40030 – Weather forecast start
+#define MB_REG_WEATHER_END   45   // 40046 – Weather forecast end
+#define MB_HREG_COUNT        46   // total holding registers (0-45)
+#define MB_COIL_DND          0    // 00001 – Do Not Disturb
+#define MB_COIL_MUR          1    // 00002 – Make Up Room
 
 // ── Input Registers (read-only, 30001+) ─────────────────────────────────────
 #define MB_IREG_CURRENT_TEMP  0  // 30001 – current temperature ×10
@@ -75,6 +86,7 @@ void modbus_set_fan_speed(uint8_t speed);
 void modbus_set_dnd_coil(bool state);
 void modbus_set_mur_coil(bool state);
 void modbus_set_slave_addr(uint8_t addr);  // apply new address without restart
+void modbus_sync_from_settings(void);     // sync all g_sys_cfg parameters to Modbus holding registers
 
 // Getters for read-only status (returns from g_mb.ireg mirror)
 uint16_t modbus_get_current_temp(void);   // returns temperature x10

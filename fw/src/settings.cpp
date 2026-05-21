@@ -171,6 +171,9 @@ void settings_save_dirty(void)
     s_prefs.end();
     LOG_INFO("[CFG] Saved dirty flags: 0x%04X", g_dirty_flags);
     g_dirty_flags = 0;
+
+    // Sync newly saved NVS configurations to Modbus holding registers
+    modbus_sync_from_settings();
 }
 
 void settings_reset_dirty(void)
