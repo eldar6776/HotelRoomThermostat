@@ -59,7 +59,7 @@ static uint16_t cb_hreg_write(TRegister *reg, uint16_t val)
     
     switch (reg_index) {
         case MB_REG_TARGET_TEMP: {
-            val = constrain(val, TEMP_SETPOINT_MIN * 10, TEMP_SETPOINT_MAX * 10);
+            val = constrain(val, g_sys_cfg.temp_min * 10, g_sys_cfg.temp_max * 10);
             int16_t target_c = (int16_t)(val / 10);
             if (g_sys_cfg.target_temp != target_c) {
                 g_sys_cfg.target_temp = target_c;

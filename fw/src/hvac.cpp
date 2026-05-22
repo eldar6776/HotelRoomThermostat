@@ -222,6 +222,11 @@ void hvac_update(void)
 {
     // 0. Sinkroniziraj stanje s Modbus registrima (Single Source of Truth)
     int new_setpoint   = g_mb.hreg[MB_REG_TARGET_TEMP] / 10;
+    if (new_setpoint < g_sys_cfg.temp_min) new_setpoint = g_sys_cfg.temp_min;
+    if (new_setpoint > g_sys_cfg.temp_max) new_setpoint = g_sys_cfg.temp_max;
+    if (g_mb.hreg[MB_REG_TARGET_TEMP] != new_setpoint * 10) {
+        modbus_set_target_temp(new_setpoint * 10);
+    }
     uint8_t new_mode   = (uint8_t)g_mb.hreg[MB_REG_HVAC_MODE];
     uint8_t new_fan    = (uint8_t)g_mb.hreg[MB_REG_FAN_SPEED];
 
@@ -374,8 +379,8 @@ void hvac_deadband_tick(void)
 // ── Setters (called from UI callbacks) ───────────────────────────────────────
 void hvac_set_setpoint(int temp_c)
 {
-    if (temp_c < TEMP_SETPOINT_MIN) temp_c = TEMP_SETPOINT_MIN;
-    if (temp_c > TEMP_SETPOINT_MAX) temp_c = TEMP_SETPOINT_MAX;
+    if (temp_c < g_sys_cfg.temp_min) temp_c = g_sys_cfg.temp_min;
+    if (temp_c > g_sys_cfg.temp_max) temp_c = g_sys_cfg.temp_max;
     s_setpoint = temp_c;
     
     s_auto_fan_init = false; // Resetuj izračun brzine čim korisnik zavrti arc slider
