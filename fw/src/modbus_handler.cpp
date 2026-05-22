@@ -57,17 +57,34 @@ static uint16_t cb_hreg_write(TRegister *reg, uint16_t val)
     if (reg_index >= MB_HREG_COUNT) return val;
     
     switch (reg_index) {
-        case MB_REG_TARGET_TEMP:
+        case MB_REG_TARGET_TEMP: {
             val = constrain(val, TEMP_SETPOINT_MIN * 10, TEMP_SETPOINT_MAX * 10);
+            int16_t target_c = (int16_t)(val / 10);
+            if (g_sys_cfg.target_temp != target_c) {
+                g_sys_cfg.target_temp = target_c;
+                g_dirty_flags |= FLAG_TARGET_TEMP;
+                settings_schedule_save();
+            }
             break;
+        }
         case MB_REG_HVAC_MODE:
             if (val > HVAC_COOL) val = HVAC_OFF;
+            if (g_sys_cfg.hvac_mode != val) {
+                g_sys_cfg.hvac_mode = (uint8_t)val;
+                g_dirty_flags |= FLAG_HVAC_MODE;
+                settings_schedule_save();
+            }
             break;
         case MB_REG_FAN_SPEED:
             if (val > FAN_HIGH) val = FAN_AUTO;
             break;
         case MB_REG_RELAY_MODE:
             if (val > 1) val = 0;
+            if (g_sys_cfg.ctrl_type != val) {
+                g_sys_cfg.ctrl_type = (uint8_t)val;
+                g_dirty_flags |= FLAG_CTRL_TYPE;
+                settings_schedule_save();
+            }
             break;
         case MB_REG_OUTSIDE_TEMP:
             // Vanjska temperatura ažurirana
@@ -87,32 +104,77 @@ static uint16_t cb_hreg_write(TRegister *reg, uint16_t val)
         }
         case MB_REG_TEMP_MIN:
             val = constrain(val, 10, 24);
+            if (g_sys_cfg.temp_min != (int16_t)val) {
+                g_sys_cfg.temp_min = (int16_t)val;
+                g_dirty_flags |= FLAG_TEMP_MIN;
+                settings_schedule_save();
+            }
             break;
         case MB_REG_TEMP_MAX:
             val = constrain(val, 25, 40);
+            if (g_sys_cfg.temp_max != (int16_t)val) {
+                g_sys_cfg.temp_max = (int16_t)val;
+                g_dirty_flags |= FLAG_TEMP_MAX;
+                settings_schedule_save();
+            }
             break;
         case MB_REG_HYSTERESIS:
             val = constrain(val, 2, 20);
+            if (g_sys_cfg.hysteresis_x10 != (int16_t)val) {
+                g_sys_cfg.hysteresis_x10 = (int16_t)val;
+                g_dirty_flags |= FLAG_HYSTERESIS;
+                settings_schedule_save();
+            }
             break;
         case MB_REG_STAGE_STEP:
             val = constrain(val, 5, 25);
+            if (g_sys_cfg.stage_step_x10 != (int16_t)val) {
+                g_sys_cfg.stage_step_x10 = (int16_t)val;
+                g_dirty_flags |= FLAG_STAGE_STEP;
+                settings_schedule_save();
+            }
             break;
         case MB_REG_SENSOR_OFFSET:
             val = constrain((int16_t)val, -50, 50);
+            if (g_sys_cfg.sensor_offset_x10 != (int16_t)val) {
+                g_sys_cfg.sensor_offset_x10 = (int16_t)val;
+                g_dirty_flags |= FLAG_SENSOR_OFFSET;
+                settings_schedule_save();
+            }
             break;
         case MB_REG_BRIGHT_HIGH:
             val = constrain(val, 0, 1023);
+            if (g_sys_cfg.bright_high != val) {
+                g_sys_cfg.bright_high = val;
+                g_dirty_flags |= FLAG_BRIGHT_HIGH;
+                settings_schedule_save();
+            }
             break;
         case MB_REG_BRIGHT_LOW:
             val = constrain(val, 0, 1023);
+            if (g_sys_cfg.bright_low != val) {
+                g_sys_cfg.bright_low = val;
+                g_dirty_flags |= FLAG_BRIGHT_LOW;
+                settings_schedule_save();
+            }
             break;
         case MB_REG_TIMEOUT_S:
             if (val != 30 && val != 60 && val != 120) {
                 val = 30; // fallback to default
             }
+            if (g_sys_cfg.timeout_s != val) {
+                g_sys_cfg.timeout_s = (uint8_t)val;
+                g_dirty_flags |= FLAG_TIMEOUT;
+                settings_schedule_save();
+            }
             break;
         case MB_REG_THEME_SELECT:
             if (val > 1) val = 0;
+            if (g_sys_cfg.theme_select != val) {
+                g_sys_cfg.theme_select = (uint8_t)val;
+                g_dirty_flags |= FLAG_THEME_SELECT;
+                settings_schedule_save();
+            }
             break;
         default:
             break;

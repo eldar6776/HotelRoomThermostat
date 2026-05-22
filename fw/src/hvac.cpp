@@ -224,16 +224,6 @@ void hvac_update(void)
     int new_setpoint   = g_mb.hreg[MB_REG_TARGET_TEMP] / 10;
     uint8_t new_mode   = (uint8_t)g_mb.hreg[MB_REG_HVAC_MODE];
     uint8_t new_fan    = (uint8_t)g_mb.hreg[MB_REG_FAN_SPEED];
-    uint8_t new_ctrl   = (uint8_t)g_mb.hreg[MB_REG_RELAY_MODE];
-    int16_t new_tmin   = (int16_t)g_mb.hreg[MB_REG_TEMP_MIN];
-    int16_t new_tmax   = (int16_t)g_mb.hreg[MB_REG_TEMP_MAX];
-    int16_t new_hyst   = (int16_t)g_mb.hreg[MB_REG_HYSTERESIS];
-    int16_t new_stage  = (int16_t)g_mb.hreg[MB_REG_STAGE_STEP];
-    int16_t new_offset = (int16_t)g_mb.hreg[MB_REG_SENSOR_OFFSET];
-    uint16_t new_bhigh = g_mb.hreg[MB_REG_BRIGHT_HIGH];
-    uint16_t new_blow  = g_mb.hreg[MB_REG_BRIGHT_LOW];
-    uint8_t new_tout   = (uint8_t)g_mb.hreg[MB_REG_TIMEOUT_S];
-    uint8_t new_theme  = (uint8_t)g_mb.hreg[MB_REG_THEME_SELECT];
 
     // BUGFIX: Ako Modbus master ili prvi boot promijeni stanje moda, brzine,
     // ili SETPOINTA, obavezno resetuj auto-fan inicijalizaciju
@@ -252,67 +242,6 @@ void hvac_update(void)
     s_setpoint   = new_setpoint;
     s_hvac_mode  = new_mode;
     s_fan_speed  = new_fan;
-
-    // Synchronize HVAC Mode back to g_sys_cfg and NVS
-    if (g_sys_cfg.hvac_mode != new_mode) {
-        g_sys_cfg.hvac_mode = new_mode;
-        g_dirty_flags |= FLAG_HVAC_MODE;
-        settings_schedule_save();
-    }
-
-    // Synchronize Relay Mode (ctrl_type) back to g_sys_cfg and NVS
-    if (g_sys_cfg.ctrl_type != new_ctrl) {
-        g_sys_cfg.ctrl_type = new_ctrl;
-        g_dirty_flags |= FLAG_CTRL_TYPE;
-        settings_schedule_save();
-    }
-
-    // Synchronize new exposed settings back to g_sys_cfg and NVS
-    if (g_sys_cfg.temp_min != new_tmin) {
-        g_sys_cfg.temp_min = new_tmin;
-        g_dirty_flags |= FLAG_TEMP_MIN;
-        settings_schedule_save();
-    }
-    if (g_sys_cfg.temp_max != new_tmax) {
-        g_sys_cfg.temp_max = new_tmax;
-        g_dirty_flags |= FLAG_TEMP_MAX;
-        settings_schedule_save();
-    }
-    if (g_sys_cfg.hysteresis_x10 != new_hyst) {
-        g_sys_cfg.hysteresis_x10 = new_hyst;
-        g_dirty_flags |= FLAG_HYSTERESIS;
-        settings_schedule_save();
-    }
-    if (g_sys_cfg.stage_step_x10 != new_stage) {
-        g_sys_cfg.stage_step_x10 = new_stage;
-        g_dirty_flags |= FLAG_STAGE_STEP;
-        settings_schedule_save();
-    }
-    if (g_sys_cfg.sensor_offset_x10 != new_offset) {
-        g_sys_cfg.sensor_offset_x10 = new_offset;
-        g_dirty_flags |= FLAG_SENSOR_OFFSET;
-        settings_schedule_save();
-    }
-    if (g_sys_cfg.bright_high != new_bhigh) {
-        g_sys_cfg.bright_high = new_bhigh;
-        g_dirty_flags |= FLAG_BRIGHT_HIGH;
-        settings_schedule_save();
-    }
-    if (g_sys_cfg.bright_low != new_blow) {
-        g_sys_cfg.bright_low = new_blow;
-        g_dirty_flags |= FLAG_BRIGHT_LOW;
-        settings_schedule_save();
-    }
-    if (g_sys_cfg.timeout_s != new_tout) {
-        g_sys_cfg.timeout_s = new_tout;
-        g_dirty_flags |= FLAG_TIMEOUT;
-        settings_schedule_save();
-    }
-    if (g_sys_cfg.theme_select != new_theme) {
-        g_sys_cfg.theme_select = new_theme;
-        g_dirty_flags |= FLAG_THEME_SELECT;
-        settings_schedule_save();
-    }
 
     // 1. Read NTC with EMA filter
     int   raw_adc  = analogRead(PIN_NTC);
