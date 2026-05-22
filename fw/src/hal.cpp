@@ -235,6 +235,16 @@ static void pca9554_configure(void)
     s_extI2C.endTransmission();
     delay(5);
 
+    // KORAK 1.5: PRVO — Postavi Output Port register na 0x00 (svi output pinovi LOW za ULN2003)
+    // PCA9554 power-on default za output register je 0xFF. Moramo ga postaviti na 0x00
+    // PRIJE nego što pinove prebacimo u izlazni mod kako bismo izbjegli tranzicijski klik!
+    s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
+    s_extI2C.write(PCA_REG_OUTPUT);
+    s_extI2C.write(0x00);
+    s_extI2C.endTransmission();
+    delay(5);
+    s_exp_output_state = 0x00;  // Sync local copy
+
     // KORAK 2: Configuration register — postavlja smjer pinova
     // P0-P3 output (0), P4-P7 input (1) = 0xF0
     s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
@@ -264,15 +274,6 @@ static void pca9554_configure(void)
         LOG_ERROR("[HAL] PCA9554 Configuration MISMATCH! Expected 0x%02X, got 0x%02X",
                   PCA_CONFIG_VALUE, verify_val);
     }
-
-    // KORAK 4: Postavi Output Port register na 0x00 (svi output pinovi OFF za ULN2003)
-    // ULN2003 open-collector: 0=transistor OFF, izlaz floats HIGH
-    s_extI2C.beginTransmission(EXPANDER_I2C_ADDR);
-    s_extI2C.write(PCA_REG_OUTPUT);
-    s_extI2C.write(0x00);
-    s_extI2C.endTransmission();
-    delay(5);
-    s_exp_output_state = 0x00;  // Sync local copy
 }
 
 // ============================================================================
