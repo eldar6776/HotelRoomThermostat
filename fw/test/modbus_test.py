@@ -52,6 +52,9 @@ MB_IREG_UPTIME_HIGH = 4
 MB_IREG_FREE_HEAP = 5
 MB_IREG_WINDOW_RAW = 6
 MB_IREG_SENSOR_FAULT = 7     # DODANO: Senzor fault registar
+MB_IREG_VERSION_MAJOR = 8     # DODANO: Firmware verzija Major
+MB_IREG_VERSION_MINOR = 9     # DODANO: Firmware verzija Minor
+MB_IREG_VERSION_PATCH = 10    # DODANO: Firmware verzija Patch/Build
 
 # Coils (00001+, 0-based)
 MB_COIL_DND = 0
@@ -137,7 +140,7 @@ def do_read_state(client, slave_id, verbose=True):
     
     hregs = read_hregs(client, slave_id, MB_REG_TARGET_TEMP, 15) # Čitamo 15 registara (0 do 14)
     rmode = read_hregs(client, slave_id, MB_REG_RELAY_MODE, 1)
-    iregs = read_iregs(client, slave_id, MB_IREG_CURRENT_TEMP, 8) # Čitamo 8 registara
+    iregs = read_iregs(client, slave_id, MB_IREG_CURRENT_TEMP, 11) # Čitamo 11 registara
     coils = read_coils(client, slave_id, MB_COIL_DND, 2)
     dists = read_dists(client, slave_id, MB_ISTS_WINDOW_CLOSED, 4) # Čitamo 4 bita
 
@@ -193,6 +196,7 @@ def do_read_state(client, slave_id, verbose=True):
     print_success(f"Uptime      : {uptime}s")
     print_success(f"Window Raw  : {'CLOSED' if iregs.registers[6] else 'OPEN'}")
     print_success(f"Sensor Fault: {'YES (FAULT)' if iregs.registers[7] else 'NO (OK)'}")
+    print_success(f"FW Version  : v{iregs.registers[MB_IREG_VERSION_MAJOR]}.{iregs.registers[MB_IREG_VERSION_MINOR]}.{iregs.registers[MB_IREG_VERSION_PATCH]}")
 
     print_info(f"--- Status Flags (Coils & Discrete) ---")
     print_success(f"DND: {'ON' if coils.bits[0] else 'OFF'} | MUR: {'ON' if coils.bits[1] else 'OFF'}")

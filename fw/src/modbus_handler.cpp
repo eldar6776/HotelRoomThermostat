@@ -7,6 +7,7 @@
 #include <ModbusRTU.h>
 #include <Preferences.h>
 #include <esp_heap_caps.h>
+#include "version.h"
 
 // ── Global data ───────────────────────────────────────────────────────────────
 mb_data_t g_mb;
@@ -204,6 +205,14 @@ void modbus_init(uint8_t slave_addr)
     // Register input registers (read-only, 30001+)
     s_mb.addIreg(0, 0, MB_IREG_COUNT);
 
+    // Initialize read-only version registers
+    g_mb.ireg[MB_IREG_VERSION_MAJOR] = VERSION_MAJOR;
+    g_mb.ireg[MB_IREG_VERSION_MINOR] = VERSION_MINOR;
+    g_mb.ireg[MB_IREG_VERSION_PATCH] = VERSION_PATCH;
+    s_mb.Ireg(MB_IREG_VERSION_MAJOR, VERSION_MAJOR);
+    s_mb.Ireg(MB_IREG_VERSION_MINOR, VERSION_MINOR);
+    s_mb.Ireg(MB_IREG_VERSION_PATCH, VERSION_PATCH);
+
     // Register discrete inputs (read-only bits, 10001+)
     s_mb.addIsts(0, false, MB_ISTS_COUNT);
 
@@ -352,6 +361,14 @@ void modbus_update_inputs(void)
     bool sensor_fault = hvac_temp_sensor_fault();
     g_mb.ireg[MB_IREG_SENSOR_FAULT] = sensor_fault ? 1 : 0;
     s_mb.Ireg(MB_IREG_SENSOR_FAULT, g_mb.ireg[MB_IREG_SENSOR_FAULT]);
+
+    // Input Registers 8-10: Firmware version verification
+    g_mb.ireg[MB_IREG_VERSION_MAJOR] = VERSION_MAJOR;
+    g_mb.ireg[MB_IREG_VERSION_MINOR] = VERSION_MINOR;
+    g_mb.ireg[MB_IREG_VERSION_PATCH] = VERSION_PATCH;
+    s_mb.Ireg(MB_IREG_VERSION_MAJOR, VERSION_MAJOR);
+    s_mb.Ireg(MB_IREG_VERSION_MINOR, VERSION_MINOR);
+    s_mb.Ireg(MB_IREG_VERSION_PATCH, VERSION_PATCH);
 
     // Discrete Input 0: Window closed
     s_mb.Ists(MB_ISTS_WINDOW_CLOSED, window_closed);

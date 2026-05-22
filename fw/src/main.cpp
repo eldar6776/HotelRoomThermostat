@@ -12,6 +12,7 @@
 #include "hvac.h"
 #include "debug_logger.h"
 #include "wifi_manager.h"
+#include "version.h"
 
 extern "C" {
     #include "../lvgl/ui.h"
@@ -416,7 +417,7 @@ void setup(void)
     
     s_boot_ms = millis();
 
-    LOG_INFO("=== Hotel Room Thermostat ===");
+    LOG_INFO("=== Hotel Room Thermostat v%d.%d.%d (%s) ===", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, BUILD_DATE);
     LOG_INFO("CPU: %lu MHz   PSRAM: %.1f MB free",
              getCpuFrequencyMhz(),
              heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1048576.0f);

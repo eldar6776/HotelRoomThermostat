@@ -35,7 +35,10 @@
 #define MB_IREG_FREE_HEAP     5  // 30006 – free heap in KB
 #define MB_IREG_WINDOW_RAW    6  // 30007 – window sensor raw (0=open,1=closed)
 #define MB_IREG_SENSOR_FAULT  7  // 30008 – temp sensor fault (1=fault,0=ok)
-#define MB_IREG_COUNT         8  // total input registers
+#define MB_IREG_VERSION_MAJOR 8  // 30009 – firmware version major
+#define MB_IREG_VERSION_MINOR 9  // 30010 – firmware version minor
+#define MB_IREG_VERSION_PATCH 10 // 30011 – firmware version patch/build
+#define MB_IREG_COUNT         11 // total input registers
 
 // ── Discrete Inputs (read-only bits, 10001+) ────────────────────────────────
 #define MB_ISTS_WINDOW_CLOSED 0  // 10001 – window sensor (1=closed,0=open)
