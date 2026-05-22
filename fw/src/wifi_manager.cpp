@@ -25,6 +25,7 @@ static WiFiManagerParameter upload_link(
 );
 
 void wifi_manager_init() {
+    wm.setDebugOutput(false); // Disable WiFiManager internal logging to Serial
     wm.setConnectTimeout(20);
     wm.setConfigPortalTimeout(180); // 3 minutes
     
