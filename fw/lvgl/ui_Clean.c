@@ -18,9 +18,6 @@ void ui_event_BtnCleanStart(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
 
-    if(event_code == LV_EVENT_PRESSED) {
-        action_clean_pressed(e);
-    }
     if(event_code == LV_EVENT_CLICKED) {
         action_clean_start(e);
     }

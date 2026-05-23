@@ -36,8 +36,6 @@ extern lv_obj_t * ui_LabelBtnSave2;
 extern void ui_event_BtnNext2(lv_event_t * e);
 extern lv_obj_t * ui_BtnNext2;
 extern lv_obj_t * ui_LabelBtnNext2;
-extern lv_obj_t * ui_DropSelectTheme;
-extern lv_obj_t * ui_LabelThemeSelect;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

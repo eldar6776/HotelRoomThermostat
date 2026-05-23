@@ -20,8 +20,6 @@ lv_obj_t * ui_BtnSave2 = NULL;
 lv_obj_t * ui_LabelBtnSave2 = NULL;
 lv_obj_t * ui_BtnNext2 = NULL;
 lv_obj_t * ui_LabelBtnNext2 = NULL;
-lv_obj_t * ui_DropSelectTheme = NULL;
-lv_obj_t * ui_LabelThemeSelect = NULL;
 // event funtions
 void ui_event_DropHysteresis(lv_event_t * e)
 {
@@ -89,15 +87,6 @@ void ui_event_BtnNext2(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         _ui_screen_change(&ui_Settings3, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_Settings3_screen_init);
-    }
-}
-
-void ui_event_DropSelectTheme(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        action_theme_changed(e);
     }
 }
 
@@ -226,22 +215,6 @@ void ui_Settings2_screen_init(void)
     lv_label_set_text(ui_LabelBtnNext2, "NEXT");
     lv_obj_set_style_text_font(ui_LabelBtnNext2, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_DropSelectTheme = lv_dropdown_create(ui_Settings2);
-    lv_dropdown_set_options(ui_DropSelectTheme, "NONE\nLOGO");
-    lv_obj_set_width(ui_DropSelectTheme, 200);
-    lv_obj_set_height(ui_DropSelectTheme, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_DropSelectTheme, -20);
-    lv_obj_set_y(ui_DropSelectTheme, 270);
-    lv_obj_set_align(ui_DropSelectTheme, LV_ALIGN_TOP_RIGHT);
-    lv_obj_add_flag(ui_DropSelectTheme, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
-
-    ui_LabelThemeSelect = lv_label_create(ui_Settings2);
-    lv_obj_set_width(ui_LabelThemeSelect, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_LabelThemeSelect, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_LabelThemeSelect, 20);
-    lv_obj_set_y(ui_LabelThemeSelect, 280);
-    lv_label_set_text(ui_LabelThemeSelect, "Select Theme");
-
     lv_obj_add_event_cb(ui_DropHysteresis, ui_event_DropHysteresis, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_DropStageStep, ui_event_DropStageStep, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_SpinSensorOffset, ui_event_SpinSensorOffset, LV_EVENT_ALL, NULL);
@@ -249,8 +222,6 @@ void ui_Settings2_screen_init(void)
     lv_obj_add_event_cb(ui_BtnOffsetInc, ui_event_BtnOffsetInc, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnSave2, ui_event_BtnSave2, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnNext2, ui_event_BtnNext2, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_DropSelectTheme, ui_event_DropSelectTheme, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_Settings2, settings2_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
 
 }
 
@@ -274,8 +245,6 @@ void ui_Settings2_screen_destroy(void)
     ui_LabelBtnSave2 = NULL;
     ui_BtnNext2 = NULL;
     ui_LabelBtnNext2 = NULL;
-    ui_DropSelectTheme = NULL;
-    ui_LabelThemeSelect = NULL;
 
 }
 
