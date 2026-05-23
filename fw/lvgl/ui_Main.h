@@ -32,6 +32,9 @@ extern lv_obj_t * ui_LabelTermostat;
 extern void ui_event_ButtonHiddenMenu(lv_event_t * e);
 extern lv_obj_t * ui_ButtonHiddenMenu;
 // CUSTOM VARIABLES
+extern lv_obj_t * ui_ContainerTempGrid;
+extern lv_obj_t * ui_LabelCurrentVal;
+extern lv_obj_t * ui_LabelOutdoorVal;
 
 #ifdef __cplusplus
 } /*extern "C"*/

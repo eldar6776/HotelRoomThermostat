@@ -18,6 +18,9 @@ lv_obj_t * ui_LabelMur = NULL;
 lv_obj_t * ui_ButtonGoToThermostat = NULL;
 lv_obj_t * ui_LabelTermostat = NULL;
 lv_obj_t * ui_ButtonHiddenMenu = NULL;
+lv_obj_t * ui_ContainerTempGrid = NULL;
+lv_obj_t * ui_LabelCurrentVal = NULL;
+lv_obj_t * ui_LabelOutdoorVal = NULL;
 // event funtions
 void ui_event_ButtonDnd(lv_event_t * e)
 {
@@ -88,25 +91,52 @@ void ui_Main_screen_init(void)
     lv_obj_set_style_text_opa(ui_LabelClock, 230, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_LabelClock, &ui_font_fontinterlight80, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_LabelCurrentTemp = lv_label_create(ui_TileMain);
-    lv_obj_set_width(ui_LabelCurrentTemp, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_LabelCurrentTemp, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_LabelCurrentTemp, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_LabelCurrentTemp, "Innen:    24°C");
+    ui_ContainerTempGrid = lv_obj_create(ui_TileMain);
+    lv_obj_set_size(ui_ContainerTempGrid, 280, 80);
+    lv_obj_align(ui_ContainerTempGrid, LV_ALIGN_CENTER, 0, 35);
+    lv_obj_set_style_bg_opa(ui_ContainerTempGrid, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_ContainerTempGrid, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_clear_flag(ui_ContainerTempGrid, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Label Current Temp (Text "Innen")
+    ui_LabelCurrentTemp = lv_label_create(ui_ContainerTempGrid);
+    lv_obj_set_width(ui_LabelCurrentTemp, LV_SIZE_CONTENT);
+    lv_obj_set_height(ui_LabelCurrentTemp, LV_SIZE_CONTENT);
+    lv_obj_align(ui_LabelCurrentTemp, LV_ALIGN_TOP_LEFT, 10, 5);
+    lv_label_set_text(ui_LabelCurrentTemp, "Innen");
     lv_obj_set_style_text_color(ui_LabelCurrentTemp, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_LabelCurrentTemp, 180, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_LabelCurrentTemp, &lv_font_montserrat_24, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_LabelOutdoorTemp = lv_label_create(ui_TileMain);
-    lv_obj_set_width(ui_LabelOutdoorTemp, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_LabelOutdoorTemp, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_LabelOutdoorTemp, 0);
-    lv_obj_set_y(ui_LabelOutdoorTemp, 30);
-    lv_obj_set_align(ui_LabelOutdoorTemp, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_LabelOutdoorTemp, "Aussen:  18°C");
+    // Label Current Val (Value)
+    ui_LabelCurrentVal = lv_label_create(ui_ContainerTempGrid);
+    lv_obj_set_width(ui_LabelCurrentVal, LV_SIZE_CONTENT);
+    lv_obj_set_height(ui_LabelCurrentVal, LV_SIZE_CONTENT);
+    lv_obj_align(ui_LabelCurrentVal, LV_ALIGN_TOP_RIGHT, -10, 5);
+    lv_label_set_text(ui_LabelCurrentVal, "--°C");
+    lv_obj_set_style_text_color(ui_LabelCurrentVal, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_LabelCurrentVal, 180, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_LabelCurrentVal, &lv_font_montserrat_24, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    // Label Outdoor Temp (Text "Aussen")
+    ui_LabelOutdoorTemp = lv_label_create(ui_ContainerTempGrid);
+    lv_obj_set_width(ui_LabelOutdoorTemp, LV_SIZE_CONTENT);
+    lv_obj_set_height(ui_LabelOutdoorTemp, LV_SIZE_CONTENT);
+    lv_obj_align(ui_LabelOutdoorTemp, LV_ALIGN_BOTTOM_LEFT, 10, -5);
+    lv_label_set_text(ui_LabelOutdoorTemp, "Aussen");
     lv_obj_set_style_text_color(ui_LabelOutdoorTemp, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_LabelOutdoorTemp, 180, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_LabelOutdoorTemp, &lv_font_montserrat_24, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    // Label Outdoor Val (Value)
+    ui_LabelOutdoorVal = lv_label_create(ui_ContainerTempGrid);
+    lv_obj_set_width(ui_LabelOutdoorVal, LV_SIZE_CONTENT);
+    lv_obj_set_height(ui_LabelOutdoorVal, LV_SIZE_CONTENT);
+    lv_obj_align(ui_LabelOutdoorVal, LV_ALIGN_BOTTOM_RIGHT, -10, -5);
+    lv_label_set_text(ui_LabelOutdoorVal, "--°C");
+    lv_obj_set_style_text_color(ui_LabelOutdoorVal, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_LabelOutdoorVal, 180, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_LabelOutdoorVal, &lv_font_montserrat_24, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ImageWeatherIcon = lv_img_create(ui_TileMain);
     lv_obj_set_width(ui_ImageWeatherIcon, LV_SIZE_CONTENT);   /// 1
@@ -263,6 +293,9 @@ void ui_Main_screen_destroy(void)
     ui_ButtonGoToThermostat = NULL;
     ui_LabelTermostat = NULL;
     ui_ButtonHiddenMenu = NULL;
+    ui_ContainerTempGrid = NULL;
+    ui_LabelCurrentVal = NULL;
+    ui_LabelOutdoorVal = NULL;
 
 }
 

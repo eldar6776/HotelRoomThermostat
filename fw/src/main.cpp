@@ -163,9 +163,9 @@ static void update_temp_labels(void)
               + (g_sys_cfg.sensor_offset_x10 / 10.0f);
     char temp_buf[32]; // Buffer for formatted strings
 
-    // Main screen label (one line, 5 spaces)
-    snprintf(temp_buf, sizeof(temp_buf), "Innen:     %.0f°C", roundf(t));
-    lv_label_set_text(ui_LabelCurrentTemp, temp_buf);
+    // Main screen value label (text label remains static)
+    snprintf(temp_buf, sizeof(temp_buf), "%.0f°C", roundf(t));
+    lv_label_set_text(ui_LabelCurrentVal, temp_buf);
 
     // Thermostat screen label (one line, no spaces)
     snprintf(temp_buf, sizeof(temp_buf), "Innen:  %.0f°C", roundf(t));
@@ -253,13 +253,15 @@ static void update_outside_temp_label(void)
 {
     if (modbus_has_outside_temp()) {
         lv_obj_clear_flag(ui_LabelOutdoorTemp, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(ui_LabelOutdoorVal, LV_OBJ_FLAG_HIDDEN);
         // Cast uint16_t -> int16_t -> int da bi ispravno očitali negativne temperature (npr. -5°C)
         int out_temp = (int)(int16_t)g_mb.hreg[MB_REG_OUTSIDE_TEMP];
         char temp_buf[32];
-        snprintf(temp_buf, sizeof(temp_buf), "Aussen:  %d°C", out_temp);
-        lv_label_set_text(ui_LabelOutdoorTemp, temp_buf);
+        snprintf(temp_buf, sizeof(temp_buf), "%d°C", out_temp);
+        lv_label_set_text(ui_LabelOutdoorVal, temp_buf);
     } else {
         lv_obj_add_flag(ui_LabelOutdoorTemp, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(ui_LabelOutdoorVal, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
