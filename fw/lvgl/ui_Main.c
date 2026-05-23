@@ -92,7 +92,7 @@ void ui_Main_screen_init(void)
     lv_obj_set_style_text_font(ui_LabelClock, &ui_font_fontinterlight80, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ContainerTempGrid = lv_obj_create(ui_TileMain);
-    lv_obj_set_size(ui_ContainerTempGrid, 280, 80);
+    lv_obj_set_size(ui_ContainerTempGrid, 240, 80);
     lv_obj_align(ui_ContainerTempGrid, LV_ALIGN_CENTER, 0, 35);
     lv_obj_set_style_bg_opa(ui_ContainerTempGrid, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(ui_ContainerTempGrid, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
