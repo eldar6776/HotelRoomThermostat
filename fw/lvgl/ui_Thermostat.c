@@ -17,6 +17,15 @@ lv_obj_t * ui_LabelRoomTemp = NULL;
 lv_obj_t * ui_ImageHeatStatus = NULL;
 lv_obj_t * ui_ImageCoolStatus = NULL;
 // event funtions
+void ui_event_Thermostat(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_SCREEN_LOADED) {
+        thermostat_loaded_cb(e);
+    }
+}
+
 void ui_event_ArcTemp(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -226,6 +235,7 @@ void ui_Thermostat_screen_init(void)
     lv_obj_add_event_cb(ui_BtnNextThermostat, ui_event_BtnNextThermostat, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnFan, ui_event_BtnFan, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnPrevThermostat, ui_event_BtnPrevThermostat, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Thermostat, ui_event_Thermostat, LV_EVENT_ALL, NULL);
 
 }
 

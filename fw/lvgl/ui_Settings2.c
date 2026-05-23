@@ -21,6 +21,15 @@ lv_obj_t * ui_LabelBtnSave2 = NULL;
 lv_obj_t * ui_BtnNext2 = NULL;
 lv_obj_t * ui_LabelBtnNext2 = NULL;
 // event funtions
+void ui_event_Settings2(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_SCREEN_LOADED) {
+        settings2_loaded_cb(e);
+    }
+}
+
 void ui_event_DropHysteresis(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -222,6 +231,7 @@ void ui_Settings2_screen_init(void)
     lv_obj_add_event_cb(ui_BtnOffsetInc, ui_event_BtnOffsetInc, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnSave2, ui_event_BtnSave2, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnNext2, ui_event_BtnNext2, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Settings2, ui_event_Settings2, LV_EVENT_ALL, NULL);
 
 }
 

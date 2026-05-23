@@ -15,6 +15,7 @@ extern void ui_Settings1_screen_init(void);
 extern void ui_Settings1_screen_destroy(void);
 extern void ui_Settings1_screen_relocalize(void);
 extern lv_obj_t * ui_Settings1;
+extern void ui_event_Settings1(lv_event_t * e);
 extern lv_obj_t * ui_LabelMinTemp;
 extern void ui_event_DropMinTemp(lv_event_t * e);
 extern lv_obj_t * ui_DropMinTemp;

@@ -19,6 +19,15 @@ lv_obj_t * ui_LabelBtnSave1 = NULL;
 lv_obj_t * ui_BtnNext1 = NULL;
 lv_obj_t * ui_LabelBtnNext1 = NULL;
 // event funtions
+void ui_event_Settings1(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_SCREEN_LOADED) {
+        settings1_loaded_cb(e);
+    }
+}
+
 void ui_event_DropMinTemp(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -185,6 +194,7 @@ void ui_Settings1_screen_init(void)
     lv_obj_add_event_cb(ui_DropCtrlType, ui_event_DropCtrlType, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnSave1, ui_event_BtnSave1, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_BtnNext1, ui_event_BtnNext1, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Settings1, ui_event_Settings1, LV_EVENT_ALL, NULL);
 
 }
 

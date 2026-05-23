@@ -43,7 +43,7 @@ extern lv_obj_t *ui_SliderBrightLow;
 extern lv_obj_t *ui_DropTimeout;
 extern lv_obj_t *ui_SpinModbusAddr;
 extern lv_obj_t *ui_SwitchStartAp;
-extern lv_obj_t *ui_DropSelectTheme;
+lv_obj_t *ui_DropSelectTheme = NULL;
 extern lv_obj_t *ui_ButtonDnd;
 extern lv_obj_t *ui_ButtonMur;
 
@@ -467,10 +467,12 @@ void action_theme_changed(lv_event_t *e)
 {
     (void)e;
     inactivity_reset();
-    uint16_t sel = lv_dropdown_get_selected(ui_DropSelectTheme);
-    if (sel > 1) sel = 0;
-    g_sys_cfg.theme_select = (uint8_t)sel;
-    g_dirty_flags |= FLAG_THEME_SELECT;
+    if (ui_DropSelectTheme) {
+        uint16_t sel = lv_dropdown_get_selected(ui_DropSelectTheme);
+        if (sel > 1) sel = 0;
+        g_sys_cfg.theme_select = (uint8_t)sel;
+        g_dirty_flags |= FLAG_THEME_SELECT;
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -593,7 +595,7 @@ void show_dnd_popup(void)
     lv_obj_set_style_radius(s_current_popup, 16, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     // Green border (width 3, vibrant emerald/neon green)
-    lv_obj_set_style_border_color(s_current_popup, lv_color_hex(0xFF0000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(s_current_popup, lv_color_hex(0x00E676), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(s_current_popup, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(s_current_popup, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 

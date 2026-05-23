@@ -32,6 +32,10 @@ void action_modbus_changed(lv_event_t * e);
 void action_start_wifi_manager(lv_event_t * e);
 void show_dnd_popup(void);
 void show_mur_popup(void);
+void action_clean_pressed(lv_event_t * e);
+void settings1_loaded_cb(lv_event_t * e);
+void settings2_loaded_cb(lv_event_t * e);
+void thermostat_loaded_cb(lv_event_t * e);
 
 #ifdef __cplusplus
 } /*extern "C"*/

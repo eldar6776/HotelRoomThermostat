@@ -15,6 +15,7 @@ extern void ui_Thermostat_screen_init(void);
 extern void ui_Thermostat_screen_destroy(void);
 extern void ui_Thermostat_screen_relocalize(void);
 extern lv_obj_t * ui_Thermostat;
+extern void ui_event_Thermostat(lv_event_t * e);
 extern lv_obj_t * ui_TileThermostat;
 extern lv_obj_t * ui_LabelTargetTemp;
 extern void ui_event_ArcTemp(lv_event_t * e);

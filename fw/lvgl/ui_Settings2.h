@@ -15,6 +15,7 @@ extern void ui_Settings2_screen_init(void);
 extern void ui_Settings2_screen_destroy(void);
 extern void ui_Settings2_screen_relocalize(void);
 extern lv_obj_t * ui_Settings2;
+extern void ui_event_Settings2(lv_event_t * e);
 extern lv_obj_t * ui_LabelHysteresis;
 extern void ui_event_DropHysteresis(lv_event_t * e);
 extern lv_obj_t * ui_DropHysteresis;
