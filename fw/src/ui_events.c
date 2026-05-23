@@ -585,7 +585,7 @@ void show_dnd_popup(void)
     // Create container on Main Screen
     s_current_popup = lv_obj_create(ui_Main);
     lv_obj_set_size(s_current_popup, 360, 110);
-    lv_obj_align(s_current_popup, LV_ALIGN_TOP_MID, 0, 120);
+    lv_obj_align(s_current_popup, LV_ALIGN_CENTER, 0, -45);
 
     // Glassmorphism styling (same style as other popups but in vibrant neon green)
     lv_obj_set_style_bg_color(s_current_popup, lv_color_hex(0x141419), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -627,7 +627,7 @@ void show_mur_popup(void)
     // Create container on Main Screen
     s_current_popup = lv_obj_create(ui_Main);
     lv_obj_set_size(s_current_popup, 360, 110);
-    lv_obj_align(s_current_popup, LV_ALIGN_TOP_MID, 0, 120);
+    lv_obj_align(s_current_popup, LV_ALIGN_CENTER, 0, -45);
 
     // Glassmorphism styling (same style as other popups but in vibrant neon green)
     lv_obj_set_style_bg_color(s_current_popup, lv_color_hex(0x141419), LV_PART_MAIN | LV_STATE_DEFAULT);
