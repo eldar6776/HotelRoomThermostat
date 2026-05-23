@@ -1,131 +1,138 @@
 # Hotel Room Thermostat
 
-Kompletan hotelski sobni termostat razvijen kao gotov proizvod za modernu hotelsku sobu. Uređaj objedinjuje elegantan GUI na ESP32-S3 platformi, prilagođeni PCB interfejs za hotelske instalacije i potpunu Modbus/RS485 komunikaciju za integraciju sa nadređenim sistemima.
+A complete hotel room thermostat and room-status controller built as a polished, deployment-ready product for modern hospitality environments. The device combines an elegant touchscreen interface, a custom PCB expansion/interfacing board, robust RS485/Modbus connectivity, and practical service features that make it suitable for real hotel installations.
 
-Ovo nije samo ekran sa termostatom, već potpuno zaokružen uređaj za kontrolu komfora i statusa sobe — sa lokalnim korisničkim interfejsom, hotelskim funkcijama, mrežnim servisnim mogućnostima i hardverskom prilagodbom koja omogućava pouzdan rad u realnoj instalaciji.
+This project goes far beyond a simple ESP-based display thermostat. It is a compact and visually refined in-room controller designed to deliver comfort control, room-status signaling, hotel-system integration, branding flexibility, and maintainable field service access in one finished device.
 
-## Pregled uređaja
+## Product Overview
 
-Glavne funkcije uređaja:
+The unit is designed as a complete room controller for hotel applications, bringing together HVAC control, housekeeping signaling, guest-facing interaction, and backend integration in a single wall-mounted device.
 
-- upravljanje grijanjem i hlađenjem
-- podešavanje zadate temperature i brzine ventilatora
-- prikaz vremena i statusa sistema
-- **DND** (*Do Not Disturb*) dugme
-- **MUR** (*Make Up Room*) dugme za poziv sobarice
-- elegantan GUI prilagođen hotelskom okruženju
-- upload logotipa hotela preko web interfejsa
-- firmware update preko web interfejsa
-- Wi‑Fi povezivanje za servisne i mrežne funkcije
-- periodična sinhronizacija vremena preko mreže kada uređaj ne dobija time-sync paket iz hotelskog sistema
-- integracija sa hotelskim sistemom preko **RS485 / Modbus** komunikacije
+Core product capabilities:
 
-## Galerija GUI interfejsa
+- room temperature control for heating and cooling
+- setpoint adjustment and fan-speed control
+- time and system-status display
+- **DND** (*Do Not Disturb*) function
+- **MUR** (*Make Up Room*) / housekeeping call function
+- elegant guest-facing GUI optimized for hotel interiors
+- hotel logo upload through the web interface
+- firmware update through the web interface
+- Wi‑Fi connectivity for service and network-assisted features
+- periodic time refresh over the network when the device does not receive a time-sync packet from the hotel system
+- **RS485 / Modbus** integration with supervisory or hotel management systems
 
-<table>
-  <tr>
-    <td><img src="doc/gui1.jpg" alt="GUI screen 1" width="100%"></td>
-    <td><img src="doc/gui2.jpg" alt="GUI screen 2" width="100%"></td>
-  </tr>
-  <tr>
-    <td><img src="doc/gui3.jpg" alt="GUI screen 3" width="100%"></td>
-    <td><img src="doc/gui4.jpg" alt="GUI screen 4" width="100%"></td>
-  </tr>
-</table>
-
-GUI je vrlo ugodan, čist i vizuelno moderan, sa izgledom koji se dobro uklapa u hotelski enterijer. Interfejs djeluje mirno i uredno, ali istovremeno daje sve ključne informacije i komande na prvi pogled, što je posebno važno za uređaj koji koriste i gosti i osoblje.
-
-## Hardverska platforma
-
-Uređaj je baziran na **ESP32-S3 4848S040** platformi sa 4.0" touchscreen displejom i razvijen je zajedno sa posebnim **PCB interfejsom** koji ga pretvara u ozbiljno rješenje za hotelsku sobu.
-
-Prilagođeni interfejs obuhvata:
-
-- **I2C expander** za proširenje I/O funkcionalnosti
-- **flicker-free** rješenje prilagođeno stabilnom radu interfejsa i izlaza
-- **RS485 driver** za robusnu komunikaciju u objektu
-- dodatni hardverski interfejs za povezivanje sobnih funkcija i signalnih linija
-
-Takav pristup omogućava da je osnovni, cjenovno pristupačan ESP display modul pretvoren u mnogo sposobniji i profesionalniji hotelski uređaj.
-
-## Hardverske modifikacije i praktični workaround-i
-
-Zbog prirode jeftinog ESP baziranog displeja korišteno je nekoliko pažljivo izvedenih hardverskih prilagodbi kako bi uređaj dobio funkcionalnost potrebnu za realnu primjenu.
-
-### Mjerenje temperature
-
-Sam display modul nema ugrađen temperaturni senzor, pa je urađen mali hardverski hack koji omogućava mjerenje temperature i korištenje uređaja kao stvarnog sobnog termostata, a ne samo kao komandnog panela.
-
-### Serijski interfejs
-
-Napravljen je i dodatni workaround na serijskoj vezi kako bi paralelno mogli raditi:
-
-- **USB-C programer / servisni pristup**
-- **Modbus / RS485 driver**
-
-Na taj način je omogućeno i razvojno programiranje i terenska komunikacija bez odricanja od jedne od te dvije funkcije.
-
-### Fotografije hardverskih izmjena
+## GUI Gallery
 
 <table>
   <tr>
-    <td><img src="doc/workaround1.jpg" alt="Hardware workaround 1" width="100%"></td>
-    <td><img src="doc/workaround2.jpg" alt="Hardware workaround 2" width="100%"></td>
+    <td><img src="doc/gui1.jpg" alt="Hotel thermostat GUI screen 1" width="100%"></td>
+    <td><img src="doc/gui2.jpg" alt="Hotel thermostat GUI screen 2" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="doc/gui3.jpg" alt="Hotel thermostat GUI screen 3" width="100%"></td>
+    <td><img src="doc/gui4.jpg" alt="Hotel thermostat GUI screen 4" width="100%"></td>
   </tr>
 </table>
 
-## Komunikacija i integracija
+The interface is intentionally calm, clean, and visually premium. It feels comfortable and intuitive in daily use, while still exposing the right controls and room-status information at a glance. That balance is especially important in hospitality products, where the interface must be both guest-friendly and operationally practical.
 
-Komunikacioni sloj je jedna od najjačih strana ovog uređaja.
+## Hardware Platform
 
-Implementiran je kompletan **Modbus** sa funkcijama za:
+The product is built around an **ESP32-S3 4848S040** touchscreen platform with a 4.0" display, extended by a purpose-designed **PCB interface board** that turns a low-cost module into a much more capable hotel-grade controller.
 
-- read operacije
-- write operacije
-- integraciju sa hotelskim nadzornim i upravljačkim sistemima
-- razmjenu statusa, komandi i parametara uređaja
+The custom interface hardware includes:
 
-Kombinacija **RS485 drivera** i kompletne Modbus implementacije čini uređaj spremnim za ozbiljnu BMS / hotelsku integraciju.
+- an **I2C expander** for additional I/O capacity
+- a **flicker-free** interface approach for stable visual and output behavior
+- an **RS485 driver** for reliable field communication
+- dedicated interfacing for room-control and hotel-system signals
 
-## Softverske mogućnosti
+This hardware layer is a key part of the product, because it bridges the gap between an affordable display module and a fully integrated wall thermostat suitable for hospitality use.
 
-Firmware objedinjuje nekoliko veoma korisnih funkcija:
+## Engineering Workarounds and Hardware Adaptation
 
-- moderan touchscreen GUI baziran na LVGL ekosistemu
-- lokalno upravljanje sobnim komforom
-- čuvanje podešavanja
-- prikaz i obrada hotelskih statusa
-- upload prilagođenog logotipa hotela
-- web firmware update
-- Wi‑Fi konekcija za servis i mrežne funkcije
-- periodično osvježavanje vremena preko mreže kada nema sinhronizacije iz hotelskog sistema
+A particularly interesting part of the project is how the limitations of the low-cost ESP display platform were solved with thoughtful hardware adaptation, making the final device significantly more capable than the base module.
 
-To uređaj čini praktičnim i za OEM prilagodbu i za direktnu ugradnju u hotelske projekte.
+### Temperature Measurement Adaptation
 
-## Struktura repozitorija
+Because the original display module does not include a built-in temperature sensor, a small hardware modification was introduced to enable real room-temperature measurement. This transforms the unit from a visual control panel into a true room thermostat capable of meaningful environmental control.
 
-- `fw/` — firmware za ESP32-S3 uređaj
-- `hw/` — hardverski dizajn i PCB projekat interfejsne ploče
-- `sw/` — GUI / SquareLine Studio projekat i resursi interfejsa
-- `doc/` — fotografije GUI-ja, hardverskih prilagodbi i dodatna dokumentacija
+### Shared Serial Interface Adaptation
 
-## Razvojni stack
+An additional serial-line workaround was implemented so that both of the following can operate in parallel:
 
-- **MCU platforma:** ESP32-S3
+- **USB-C programming / service access**
+- **Modbus / RS485 communication**
+
+This makes the device far more practical during both development and field servicing, since engineering access and system communication can coexist without sacrificing one for the other.
+
+### Hardware Modification Photos
+
+<table>
+  <tr>
+    <td><img src="doc/workaround1.jpg" alt="Hardware workaround photo 1" width="100%"></td>
+    <td><img src="doc/workaround2.jpg" alt="Hardware workaround photo 2" width="100%"></td>
+  </tr>
+</table>
+
+## Communication and System Integration
+
+Communication is one of the strongest aspects of this device.
+
+The hardware includes an **RS485 driver**, and the firmware implements a complete **Modbus** stack with support for both:
+
+- **read functions**
+- **write functions**
+
+This allows the thermostat to exchange commands, room status, configuration values, and operating data with supervisory systems, hotel controllers, or building-management infrastructure.
+
+The result is a room device that is not only attractive on the wall, but also ready for serious systems integration.
+
+## Software Features
+
+The firmware combines guest-facing usability with service-oriented flexibility.
+
+Implemented software features include:
+
+- modern touchscreen GUI built on the LVGL ecosystem
+- local room comfort control
+- storage of configuration and runtime settings
+- room-status handling for hotel workflows
+- custom hotel logo upload
+- web-based firmware update
+- Wi‑Fi connectivity for service and support functions
+- periodic network time synchronization fallback when hotel-system time sync is unavailable
+
+These features make the platform suitable both for direct deployment and for OEM customization.
+
+## Repository Structure
+
+- `fw/` — firmware for the ESP32-S3 device
+- `hw/` — hardware design and PCB project for the interface board
+- `sw/` — GUI / SquareLine Studio project and UI resources
+- `doc/` — GUI images, hardware modification photos, and supporting project assets
+
+## Development Stack
+
+- **MCU platform:** ESP32-S3
 - **Firmware framework:** Arduino / PlatformIO
-- **GUI:** LVGL + SquareLine Studio
-- **Komunikacija:** RS485 + Modbus
-- **Storage / assets:** LittleFS i web upload resursa
-- **Hardware design:** prilagođeni PCB interfejs
+- **GUI framework:** LVGL + SquareLine Studio
+- **Communication:** RS485 + Modbus
+- **Storage / assets:** LittleFS and web-uploaded resources
+- **Hardware design:** custom PCB interface board
 
-## Zašto je projekat zanimljiv
+## Why This Project Stands Out
 
-Ovaj projekat je dobar primjer kako se od povoljnog ESP touchscreen modula može napraviti ozbiljan i vrlo lijep gotov uređaj za hotelsku sobu. Posebno je zanimljiva kombinacija:
+This project is a strong example of turning a low-cost ESP touchscreen module into a refined and deployment-ready hospitality product.
 
-- atraktivnog i prijatnog korisničkog interfejsa
-- stvarnih hotelskih funkcija kao što su DND i MUR
-- prilagođenog PCB-a za profesionalno povezivanje
-- kompletne industrijske komunikacije preko RS485 / Modbus
-- praktičnih hardverskih workaround-a koji rješavaju ograničenja osnovnog modula
+What makes it stand out is the combination of:
 
-Rezultat je kompaktan, elegantan i funkcionalno zaokružen sobni kontroler spreman za upotrebu u hotelskom okruženju.
+- a visually pleasing and polished user interface
+- real hotel-room functionality such as **DND** and **MUR**
+- custom hardware that extends the platform in a meaningful way
+- industrial-style field communication through **RS485 / Modbus**
+- practical engineering workarounds that solve real hardware limitations
+- branding and service features such as logo upload and web firmware updates
+
+The final result is a compact, elegant, and highly functional room controller that feels complete as a product, not just as a prototype.
