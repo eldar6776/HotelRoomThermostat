@@ -593,7 +593,7 @@ void show_dnd_popup(void)
     lv_obj_set_style_radius(s_current_popup, 16, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     // Green border (width 3, vibrant emerald/neon green)
-    lv_obj_set_style_border_color(s_current_popup, lv_color_hex(0x00E676), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(s_current_popup, lv_color_hex(0xFF0000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(s_current_popup, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(s_current_popup, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 

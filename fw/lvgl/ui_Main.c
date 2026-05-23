@@ -84,7 +84,7 @@ void ui_Main_screen_init(void)
     lv_obj_set_width(ui_LabelClock, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_LabelClock, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_x(ui_LabelClock, 0);
-    lv_obj_set_y(ui_LabelClock, -60);
+    lv_obj_set_y(ui_LabelClock, -30);
     lv_obj_set_align(ui_LabelClock, LV_ALIGN_CENTER);
     lv_label_set_text(ui_LabelClock, "12:00");
     lv_obj_set_style_text_color(ui_LabelClock, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -92,8 +92,8 @@ void ui_Main_screen_init(void)
     lv_obj_set_style_text_font(ui_LabelClock, &ui_font_fontinterlight80, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ContainerTempGrid = lv_obj_create(ui_TileMain);
-    lv_obj_set_size(ui_ContainerTempGrid, 240, 80);
-    lv_obj_align(ui_ContainerTempGrid, LV_ALIGN_CENTER, 0, 15);
+    lv_obj_set_size(ui_ContainerTempGrid, 220, 80);
+    lv_obj_align(ui_ContainerTempGrid, LV_ALIGN_CENTER, 0, 30);
     lv_obj_set_style_bg_opa(ui_ContainerTempGrid, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(ui_ContainerTempGrid, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_clear_flag(ui_ContainerTempGrid, LV_OBJ_FLAG_SCROLLABLE);
@@ -102,7 +102,7 @@ void ui_Main_screen_init(void)
     ui_LabelCurrentTemp = lv_label_create(ui_ContainerTempGrid);
     lv_obj_set_width(ui_LabelCurrentTemp, LV_SIZE_CONTENT);
     lv_obj_set_height(ui_LabelCurrentTemp, LV_SIZE_CONTENT);
-    lv_obj_align(ui_LabelCurrentTemp, LV_ALIGN_TOP_LEFT, 10, 5);
+    lv_obj_align(ui_LabelCurrentTemp, LV_ALIGN_TOP_LEFT, 10, 10);
     lv_label_set_text(ui_LabelCurrentTemp, "Innen");
     lv_obj_set_style_text_color(ui_LabelCurrentTemp, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_LabelCurrentTemp, 180, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -112,7 +112,7 @@ void ui_Main_screen_init(void)
     ui_LabelCurrentVal = lv_label_create(ui_ContainerTempGrid);
     lv_obj_set_width(ui_LabelCurrentVal, LV_SIZE_CONTENT);
     lv_obj_set_height(ui_LabelCurrentVal, LV_SIZE_CONTENT);
-    lv_obj_align(ui_LabelCurrentVal, LV_ALIGN_TOP_RIGHT, -10, 5);
+    lv_obj_align(ui_LabelCurrentVal, LV_ALIGN_TOP_RIGHT, -10, 10);
     lv_label_set_text(ui_LabelCurrentVal, "--°C");
     lv_obj_set_style_text_color(ui_LabelCurrentVal, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_LabelCurrentVal, 180, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -122,7 +122,7 @@ void ui_Main_screen_init(void)
     ui_LabelOutdoorTemp = lv_label_create(ui_ContainerTempGrid);
     lv_obj_set_width(ui_LabelOutdoorTemp, LV_SIZE_CONTENT);
     lv_obj_set_height(ui_LabelOutdoorTemp, LV_SIZE_CONTENT);
-    lv_obj_align(ui_LabelOutdoorTemp, LV_ALIGN_BOTTOM_LEFT, 10, -5);
+    lv_obj_align(ui_LabelOutdoorTemp, LV_ALIGN_BOTTOM_LEFT, 10, 20);
     lv_label_set_text(ui_LabelOutdoorTemp, "Aussen");
     lv_obj_set_style_text_color(ui_LabelOutdoorTemp, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_LabelOutdoorTemp, 180, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -132,7 +132,7 @@ void ui_Main_screen_init(void)
     ui_LabelOutdoorVal = lv_label_create(ui_ContainerTempGrid);
     lv_obj_set_width(ui_LabelOutdoorVal, LV_SIZE_CONTENT);
     lv_obj_set_height(ui_LabelOutdoorVal, LV_SIZE_CONTENT);
-    lv_obj_align(ui_LabelOutdoorVal, LV_ALIGN_BOTTOM_RIGHT, -10, -5);
+    lv_obj_align(ui_LabelOutdoorVal, LV_ALIGN_BOTTOM_RIGHT, -10, 20);
     lv_label_set_text(ui_LabelOutdoorVal, "--°C");
     lv_obj_set_style_text_color(ui_LabelOutdoorVal, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_LabelOutdoorVal, 180, LV_PART_MAIN | LV_STATE_DEFAULT);
