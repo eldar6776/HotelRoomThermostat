@@ -11,6 +11,7 @@
 #include "settings.h"
 #include "wifi_manager.h"
 #include "debug_logger_c.h"
+#include "ui_events.h"
 
 // Forward declarations for SquareLine-generated objects
 extern lv_obj_t *ui_SwipeContainer;
@@ -45,6 +46,9 @@ extern lv_obj_t *ui_SwitchStartAp;
 extern lv_obj_t *ui_DropSelectTheme;
 extern lv_obj_t *ui_ButtonDnd;
 extern lv_obj_t *ui_ButtonMur;
+
+extern bool s_last_displayed_dnd;
+extern bool s_last_displayed_mur;
 
 // Forward declarations for SquareLine-generated screens & helpers
 extern void ui_PinEntry_screen_init(void);
@@ -171,7 +175,12 @@ void action_dnd_toggled(lv_event_t * e)
         // DND is activated, so deactivate MUR
         lv_obj_clear_state(ui_ButtonMur, LV_STATE_CHECKED);
         modbus_set_mur_coil(false);
+        s_last_displayed_mur = false;
+        s_last_displayed_dnd = true;
+        show_dnd_popup();
         LOG_C_INFO("[UI] MUR state cleared due to DND activation");
+    } else {
+        s_last_displayed_dnd = false;
     }
     modbus_set_dnd_coil(checked);
 }
@@ -187,7 +196,12 @@ void action_mur_toggled(lv_event_t * e)
         // MUR is activated, so deactivate DND
         lv_obj_clear_state(ui_ButtonDnd, LV_STATE_CHECKED);
         modbus_set_dnd_coil(false);
+        s_last_displayed_dnd = false;
+        s_last_displayed_mur = true;
+        show_mur_popup();
         LOG_C_INFO("[UI] DND state cleared due to MUR activation");
+    } else {
+        s_last_displayed_mur = false;
     }
     modbus_set_mur_coil(checked);
 }
@@ -531,4 +545,117 @@ void action_start_wifi_manager(lv_event_t *e)
     g_wifi_ap_active = ap_on;
     inactivity_reset();
     wifi_manager_set_ap(ap_on);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  DND & MUR Popup Notifications (German)
+// ═════════════════════════════════════════════════════════════════════════════
+
+static lv_obj_t * s_current_popup = NULL;
+static lv_timer_t * s_popup_timer = NULL;
+
+static void popup_timer_cb(lv_timer_t * t)
+{
+    if (s_current_popup) {
+        lv_obj_del(s_current_popup);
+        s_current_popup = NULL;
+    }
+    s_popup_timer = NULL;
+    lv_timer_del(t);
+}
+
+void clear_active_popup(void)
+{
+    if (s_popup_timer) {
+        lv_timer_del(s_popup_timer);
+        s_popup_timer = NULL;
+    }
+    if (s_current_popup) {
+        lv_obj_del(s_current_popup);
+        s_current_popup = NULL;
+    }
+}
+
+void show_dnd_popup(void)
+{
+    if (lv_scr_act() != ui_Main) return;
+
+    clear_active_popup();
+
+    // Create container on Main Screen
+    s_current_popup = lv_obj_create(ui_Main);
+    lv_obj_set_size(s_current_popup, 360, 110);
+    lv_obj_align(s_current_popup, LV_ALIGN_TOP_MID, 0, 120);
+
+    // Glassmorphism styling (same style as other popups but in vibrant neon green)
+    lv_obj_set_style_bg_color(s_current_popup, lv_color_hex(0x141419), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(s_current_popup, 230, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(s_current_popup, 16, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    // Green border (width 3, vibrant emerald/neon green)
+    lv_obj_set_style_border_color(s_current_popup, lv_color_hex(0x00E676), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(s_current_popup, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(s_current_popup, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    // Green shadow glow
+    lv_obj_set_style_shadow_color(s_current_popup, lv_color_hex(0x00E676), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_width(s_current_popup, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_opa(s_current_popup, 120, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_spread(s_current_popup, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_clear_flag(s_current_popup, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Elegant text inside
+    lv_obj_t * label = lv_label_create(s_current_popup);
+    lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_label_set_text(label, "BITTE NICHT STOEREN\nAKTIVIERT");
+    lv_obj_set_width(label, 320);
+    lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+
+    // 3-second self-destruct timer
+    s_popup_timer = lv_timer_create(popup_timer_cb, 3000, s_current_popup);
+}
+
+void show_mur_popup(void)
+{
+    if (lv_scr_act() != ui_Main) return;
+
+    clear_active_popup();
+
+    // Create container on Main Screen
+    s_current_popup = lv_obj_create(ui_Main);
+    lv_obj_set_size(s_current_popup, 360, 110);
+    lv_obj_align(s_current_popup, LV_ALIGN_TOP_MID, 0, 120);
+
+    // Glassmorphism styling (same style as other popups but in vibrant neon green)
+    lv_obj_set_style_bg_color(s_current_popup, lv_color_hex(0x141419), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(s_current_popup, 230, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(s_current_popup, 16, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    // Green border (width 3, vibrant emerald/neon green)
+    lv_obj_set_style_border_color(s_current_popup, lv_color_hex(0x00E676), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(s_current_popup, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(s_current_popup, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    // Green shadow glow
+    lv_obj_set_style_shadow_color(s_current_popup, lv_color_hex(0x00E676), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_width(s_current_popup, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_opa(s_current_popup, 120, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_spread(s_current_popup, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_clear_flag(s_current_popup, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Elegant text inside
+    lv_obj_t * label = lv_label_create(s_current_popup);
+    lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_label_set_text(label, "ZIMMERREINIGUNG\nANGEFORDERT");
+    lv_obj_set_width(label, 320);
+    lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+
+    // 3-second self-destruct timer
+    s_popup_timer = lv_timer_create(popup_timer_cb, 3000, s_current_popup);
 }

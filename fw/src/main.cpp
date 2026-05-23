@@ -190,8 +190,8 @@ static void update_hvac_icons(void)
 // Arc, fan label, and DND/MUR buttons. Called every HVAC_UPDATE_MS period.
 static uint16_t s_last_displayed_setpoint = 0xFFFF;  // sentinel: force first update
 static uint8_t  s_last_displayed_fan      = 0xFF;
-static bool     s_last_displayed_dnd      = false;
-static bool     s_last_displayed_mur      = false;
+bool     s_last_displayed_dnd      = false;
+bool     s_last_displayed_mur      = false;
 
 static void update_thermostat_widgets(void)
 {
@@ -229,17 +229,21 @@ static void update_thermostat_widgets(void)
     bool mb_mur = s_mb_coil_mur;
     if (mb_dnd != s_last_displayed_dnd) {
         s_last_displayed_dnd = mb_dnd;
-        if (mb_dnd)
+        if (mb_dnd) {
             lv_obj_add_state(ui_ButtonDnd, LV_STATE_CHECKED);
-        else
+            show_dnd_popup();
+        } else {
             lv_obj_clear_state(ui_ButtonDnd, LV_STATE_CHECKED);
+        }
     }
     if (mb_mur != s_last_displayed_mur) {
         s_last_displayed_mur = mb_mur;
-        if (mb_mur)
+        if (mb_mur) {
             lv_obj_add_state(ui_ButtonMur, LV_STATE_CHECKED);
-        else
+            show_mur_popup();
+        } else {
             lv_obj_clear_state(ui_ButtonMur, LV_STATE_CHECKED);
+        }
     }
 }
 

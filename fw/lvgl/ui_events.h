@@ -30,6 +30,8 @@ void action_bright_low_changed(lv_event_t * e);
 void action_timeout_changed(lv_event_t * e);
 void action_modbus_changed(lv_event_t * e);
 void action_start_wifi_manager(lv_event_t * e);
+void show_dnd_popup(void);
+void show_mur_popup(void);
 
 #ifdef __cplusplus
 } /*extern "C"*/
