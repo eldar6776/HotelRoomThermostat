@@ -83,7 +83,7 @@ void ui_Main_screen_init(void)
     ui_LabelClock = lv_label_create(ui_TileMain);
     lv_obj_set_width(ui_LabelClock, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_LabelClock, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_LabelClock, -10);
+    lv_obj_set_x(ui_LabelClock, 0);
     lv_obj_set_y(ui_LabelClock, -60);
     lv_obj_set_align(ui_LabelClock, LV_ALIGN_CENTER);
     lv_label_set_text(ui_LabelClock, "12:00");
@@ -93,7 +93,7 @@ void ui_Main_screen_init(void)
 
     ui_ContainerTempGrid = lv_obj_create(ui_TileMain);
     lv_obj_set_size(ui_ContainerTempGrid, 240, 80);
-    lv_obj_align(ui_ContainerTempGrid, LV_ALIGN_CENTER, 0, 35);
+    lv_obj_align(ui_ContainerTempGrid, LV_ALIGN_CENTER, 0, 15);
     lv_obj_set_style_bg_opa(ui_ContainerTempGrid, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(ui_ContainerTempGrid, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_clear_flag(ui_ContainerTempGrid, LV_OBJ_FLAG_SCROLLABLE);
