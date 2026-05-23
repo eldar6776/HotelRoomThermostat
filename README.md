@@ -1,131 +1,131 @@
 # Hotel Room Thermostat
 
-Repozitorij objedinjuje kompletan projekat sobnog termostata za hotelske sobe:
-- **fw/** – firmware za ESP32-S3 termostat sa touchscreen interfejsom
-- **hw/** – hardverski dizajn prilagođene zidne/base board ploče
-- **sw/** – SquareLine Studio projekat i UI resursi korišteni za generisanje LVGL ekrana
+Kompletan hotelski sobni termostat razvijen kao gotov proizvod za modernu hotelsku sobu. Uređaj objedinjuje elegantan GUI na ESP32-S3 platformi, prilagođeni PCB interfejs za hotelske instalacije i potpunu Modbus/RS485 komunikaciju za integraciju sa nadređenim sistemima.
 
-Ovaj README opisuje trenutno stanje repozitorija i služi kao ulazna tačka za razvoj firmware-a, UI-ja i hardvera.
+Ovo nije samo ekran sa termostatom, već potpuno zaokružen uređaj za kontrolu komfora i statusa sobe — sa lokalnim korisničkim interfejsom, hotelskim funkcijama, mrežnim servisnim mogućnostima i hardverskom prilagodbom koja omogućava pouzdan rad u realnoj instalaciji.
+
+## Pregled uređaja
+
+Glavne funkcije uređaja:
+
+- upravljanje grijanjem i hlađenjem
+- podešavanje zadate temperature i brzine ventilatora
+- prikaz vremena i statusa sistema
+- **DND** (*Do Not Disturb*) dugme
+- **MUR** (*Make Up Room*) dugme za poziv sobarice
+- elegantan GUI prilagođen hotelskom okruženju
+- upload logotipa hotela preko web interfejsa
+- firmware update preko web interfejsa
+- Wi‑Fi povezivanje za servisne i mrežne funkcije
+- periodična sinhronizacija vremena preko mreže kada uređaj ne dobija time-sync paket iz hotelskog sistema
+- integracija sa hotelskim sistemom preko **RS485 / Modbus** komunikacije
+
+## Galerija GUI interfejsa
+
+<table>
+  <tr>
+    <td><img src="doc/gui1.jpg" alt="GUI screen 1" width="100%"></td>
+    <td><img src="doc/gui2.jpg" alt="GUI screen 2" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="doc/gui3.jpg" alt="GUI screen 3" width="100%"></td>
+    <td><img src="doc/gui4.jpg" alt="GUI screen 4" width="100%"></td>
+  </tr>
+</table>
+
+GUI je vrlo ugodan, čist i vizuelno moderan, sa izgledom koji se dobro uklapa u hotelski enterijer. Interfejs djeluje mirno i uredno, ali istovremeno daje sve ključne informacije i komande na prvi pogled, što je posebno važno za uređaj koji koriste i gosti i osoblje.
+
+## Hardverska platforma
+
+Uređaj je baziran na **ESP32-S3 4848S040** platformi sa 4.0" touchscreen displejom i razvijen je zajedno sa posebnim **PCB interfejsom** koji ga pretvara u ozbiljno rješenje za hotelsku sobu.
+
+Prilagođeni interfejs obuhvata:
+
+- **I2C expander** za proširenje I/O funkcionalnosti
+- **flicker-free** rješenje prilagođeno stabilnom radu interfejsa i izlaza
+- **RS485 driver** za robusnu komunikaciju u objektu
+- dodatni hardverski interfejs za povezivanje sobnih funkcija i signalnih linija
+
+Takav pristup omogućava da je osnovni, cjenovno pristupačan ESP display modul pretvoren u mnogo sposobniji i profesionalniji hotelski uređaj.
+
+## Hardverske modifikacije i praktični workaround-i
+
+Zbog prirode jeftinog ESP baziranog displeja korišteno je nekoliko pažljivo izvedenih hardverskih prilagodbi kako bi uređaj dobio funkcionalnost potrebnu za realnu primjenu.
+
+### Mjerenje temperature
+
+Sam display modul nema ugrađen temperaturni senzor, pa je urađen mali hardverski hack koji omogućava mjerenje temperature i korištenje uređaja kao stvarnog sobnog termostata, a ne samo kao komandnog panela.
+
+### Serijski interfejs
+
+Napravljen je i dodatni workaround na serijskoj vezi kako bi paralelno mogli raditi:
+
+- **USB-C programer / servisni pristup**
+- **Modbus / RS485 driver**
+
+Na taj način je omogućeno i razvojno programiranje i terenska komunikacija bez odricanja od jedne od te dvije funkcije.
+
+### Fotografije hardverskih izmjena
+
+<table>
+  <tr>
+    <td><img src="doc/workaround1.jpg" alt="Hardware workaround 1" width="100%"></td>
+    <td><img src="doc/workaround2.jpg" alt="Hardware workaround 2" width="100%"></td>
+  </tr>
+</table>
+
+## Komunikacija i integracija
+
+Komunikacioni sloj je jedna od najjačih strana ovog uređaja.
+
+Implementiran je kompletan **Modbus** sa funkcijama za:
+
+- read operacije
+- write operacije
+- integraciju sa hotelskim nadzornim i upravljačkim sistemima
+- razmjenu statusa, komandi i parametara uređaja
+
+Kombinacija **RS485 drivera** i kompletne Modbus implementacije čini uređaj spremnim za ozbiljnu BMS / hotelsku integraciju.
+
+## Softverske mogućnosti
+
+Firmware objedinjuje nekoliko veoma korisnih funkcija:
+
+- moderan touchscreen GUI baziran na LVGL ekosistemu
+- lokalno upravljanje sobnim komforom
+- čuvanje podešavanja
+- prikaz i obrada hotelskih statusa
+- upload prilagođenog logotipa hotela
+- web firmware update
+- Wi‑Fi konekcija za servis i mrežne funkcije
+- periodično osvježavanje vremena preko mreže kada nema sinhronizacije iz hotelskog sistema
+
+To uređaj čini praktičnim i za OEM prilagodbu i za direktnu ugradnju u hotelske projekte.
 
 ## Struktura repozitorija
 
-- `fw/` PlatformIO firmware projekat
-- `hw/` Altium Designer projekat za hardver
-- `sw/` SquareLine Studio projekat za UI dizajn i generisanje ekrana
+- `fw/` — firmware za ESP32-S3 uređaj
+- `hw/` — hardverski dizajn i PCB projekat interfejsne ploče
+- `sw/` — GUI / SquareLine Studio projekat i resursi interfejsa
+- `doc/` — fotografije GUI-ja, hardverskih prilagodbi i dodatna dokumentacija
 
-## Trenutno stanje projekta
+## Razvojni stack
 
-Projekat trenutno sadrži tri aktivna dijela:
+- **MCU platforma:** ESP32-S3
+- **Firmware framework:** Arduino / PlatformIO
+- **GUI:** LVGL + SquareLine Studio
+- **Komunikacija:** RS485 + Modbus
+- **Storage / assets:** LittleFS i web upload resursa
+- **Hardware design:** prilagođeni PCB interfejs
 
-### 1. Firmware (`fw/`)
-Firmware cilja **ESP32-S3 4848S040** platformu i koristi **Arduino framework** kroz PlatformIO.
+## Zašto je projekat zanimljiv
 
-Glavne funkcionalnosti koje su prisutne u kodu:
-- LVGL grafički interfejs za 4.0" ST7701 displej sa GT911 touch kontrolerom
-- Modbus RTU slave komunikacija
-- HVAC logika za grijanje/hlađenje i upravljanje ventilatorom
-- DND i MUR kontrole u interfejsu
-- Čuvanje podešavanja u NVS
-- LittleFS podrška za učitavanje prilagođenog logotipa
-- Wi‑Fi konfiguracija i periodična NTP sinhronizacija vremena
-- Prikaz vanjske temperature kroz Modbus registre
-- Automatsko uvećavanje build verzije preko `version_increment.py`
+Ovaj projekat je dobar primjer kako se od povoljnog ESP touchscreen modula može napraviti ozbiljan i vrlo lijep gotov uređaj za hotelsku sobu. Posebno je zanimljiva kombinacija:
 
-Važni firmware fajlovi:
-- `fw/platformio.ini`
-- `fw/src/main.cpp`
-- `fw/docs/FSD.md`
-- `fw/docs/DIAGRAMS.md`
-- `fw/docs/hvac_diagnostics_checklist.md`
+- atraktivnog i prijatnog korisničkog interfejsa
+- stvarnih hotelskih funkcija kao što su DND i MUR
+- prilagođenog PCB-a za profesionalno povezivanje
+- kompletne industrijske komunikacije preko RS485 / Modbus
+- praktičnih hardverskih workaround-a koji rješavaju ograničenja osnovnog modula
 
-### 2. Hardver (`hw/`)
-Hardverski dio je organizovan u projektu:
-- `hw/WallBaseBoard/`
-
-U tom folderu se trenutno nalaze glavni Altium fajlovi:
-- `WallBaseBoard.PrjPcb`
-- `WallBaseBoard.SchDoc`
-- `WallBaseBoard.PcbDoc`
-- biblioteke simbola i footprinta (`.SCHLIB`, `.PcbLib`)
-- izlazni i pomoćni fajlovi kao što su `.OutJob` i PDF export
-
-### 3. UI / SquareLine projekat (`sw/`)
-`sw/` više nije samo rezervisan za pomoćne alate, nego sadrži aktivni **SquareLine Studio** projekat:
-- `HotelRoomThermostat.spj`
-- `HotelRoomThermostat.slp`
-- `HotelRoomThermostat.sll`
-- `HotelRoomThermostat_events.py`
-- `assets/`, `boards/`, `backup/`
-- `project.info`
-
-Prema `sw/project.info`, projekat je editovan u **SquareLine Studio 1.6.0**.
-
-## Firmware build i upload
-
-Iz `fw/` direktorija:
-
-```bash
-platformio run
-platformio run --target upload
-platformio device monitor
-```
-
-Podrazumijevani PlatformIO environment je:
-- `thermostat`
-
-Ključne biblioteke definisane u `fw/platformio.ini`:
-- `lvgl/lvgl`
-- `moononournation/GFX Library for Arduino`
-- `emelianov/modbus-esp8266`
-- `bblanchon/ArduinoJson`
-- `tzapu/WiFiManager`
-
-## Radni tok po komponentama
-
-### Firmware razvoj
-1. Otvori `fw/` u VS Code / PlatformIO okruženju.
-2. Buildaj i flashaj firmware na ESP32-S3 uređaj.
-3. Za serijski log koristi `platformio device monitor`.
-
-### UI izmjene
-1. Otvori `sw/HotelRoomThermostat.spj` u SquareLine Studio.
-2. Uredi ekrane, teme i assete.
-3. Generisane LVGL fajlove uskladi sa sadržajem u `fw/lvgl/`.
-
-### Hardverske izmjene
-1. Otvori `hw/WallBaseBoard/WallBaseBoard.PrjPcb` u Altium Designer-u.
-2. Uredi šemu, PCB i biblioteke po potrebi.
-3. Po potrebi regeneriši proizvodne izlaze i PDF dokumentaciju.
-
-## Dokumentacija
-
-Dodatna dokumentacija za firmware nalazi se u:
-- `fw/docs/FSD.md`
-- `fw/docs/DIAGRAMS.md`
-- `fw/docs/gemini_analysis.md`
-- `fw/docs/hvac_diagnostics_checklist.md`
-
-## Preporuka za commit poruke
-
-Za pregledniju historiju commita preporučeno je razdvojiti izmjene po domenima:
-- `feat(fw): ...` za firmware
-- `feat(hw): ...` za hardver
-- `feat(sw): ...` za SquareLine/UI projekat
-- `docs: ...` za dokumentaciju
-
-Primjeri:
-- `feat(fw): add ntp sync fallback logic`
-- `feat(sw): update thermostat screen layout`
-- `feat(hw): adjust WallBaseBoard relay routing`
-- `docs: refresh root readme to match repository state`
-
-## Prvi koraci
-
-1. Ako radiš firmware, kreni iz foldera `fw/`.
-2. Ako radiš UI, koristi `sw/` i SquareLine Studio projekat.
-3. Ako radiš elektroniku, koristi `hw/WallBaseBoard/`.
-4. Za izmjene koje zahvataju više domena koristi root repozitorij kao glavnu tačku rada.
-
-## Licenca
-
-MIT License. Pogledati `fw/LICENSE` ako je prisutan u firmware dijelu projekta.
+Rezultat je kompaktan, elegantan i funkcionalno zaokružen sobni kontroler spreman za upotrebu u hotelskom okruženju.
