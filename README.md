@@ -1,35 +1,68 @@
 # Hotel Room Thermostat
 
-Unified repository for the hotel room thermostat system:
-- Firmware for ESP32-S3 touchscreen thermostat (`fw/`)
-- Hardware design files for custom wall base board (`hw/`)
+Repozitorij objedinjuje kompletan projekat sobnog termostata za hotelske sobe:
+- **fw/** – firmware za ESP32-S3 termostat sa touchscreen interfejsom
+- **hw/** – hardverski dizajn prilagođene zidne/base board ploče
+- **sw/** – SquareLine Studio projekat i UI resursi korišteni za generisanje LVGL ekrana
 
-This root README is the main entry point for the full project (firmware + hardware).
+Ovaj README opisuje trenutno stanje repozitorija i služi kao ulazna tačka za razvoj firmware-a, UI-ja i hardvera.
 
-## Repository Layout
+## Struktura repozitorija
 
-- `fw/` Firmware project (PlatformIO, LVGL UI, Modbus RTU, HVAC logic)
-- `hw/` Hardware project files (schematic, PCB, project files, outputs)
-- `doc/` Additional documentation and shared notes
-- `sw/` Reserved for supporting software/tools
+- `fw/` PlatformIO firmware projekat
+- `hw/` Altium Designer projekat za hardver
+- `sw/` SquareLine Studio projekat za UI dizajn i generisanje ekrana
 
-## Firmware Summary (`fw/`)
+## Trenutno stanje projekta
 
-The firmware targets ESP32-S3 (4848S040 style board) with:
-- 4.0" ST7701 display + GT911 touch
-- Modbus RTU slave communication
-- HVAC control (heat/cool/fan modes)
-- Weather data integration
-- Settings persistence in NVS
+Projekat trenutno sadrži tri aktivna dijela:
 
-Main firmware entry and docs:
+### 1. Firmware (`fw/`)
+Firmware cilja **ESP32-S3 4848S040** platformu i koristi **Arduino framework** kroz PlatformIO.
+
+Glavne funkcionalnosti koje su prisutne u kodu:
+- LVGL grafički interfejs za 4.0" ST7701 displej sa GT911 touch kontrolerom
+- Modbus RTU slave komunikacija
+- HVAC logika za grijanje/hlađenje i upravljanje ventilatorom
+- DND i MUR kontrole u interfejsu
+- Čuvanje podešavanja u NVS
+- LittleFS podrška za učitavanje prilagođenog logotipa
+- Wi‑Fi konfiguracija i periodična NTP sinhronizacija vremena
+- Prikaz vanjske temperature kroz Modbus registre
+- Automatsko uvećavanje build verzije preko `version_increment.py`
+
+Važni firmware fajlovi:
+- `fw/platformio.ini`
 - `fw/src/main.cpp`
 - `fw/docs/FSD.md`
 - `fw/docs/DIAGRAMS.md`
+- `fw/docs/hvac_diagnostics_checklist.md`
 
-### Build and Upload (Firmware)
+### 2. Hardver (`hw/`)
+Hardverski dio je organizovan u projektu:
+- `hw/WallBaseBoard/`
 
-From `fw/` directory:
+U tom folderu se trenutno nalaze glavni Altium fajlovi:
+- `WallBaseBoard.PrjPcb`
+- `WallBaseBoard.SchDoc`
+- `WallBaseBoard.PcbDoc`
+- biblioteke simbola i footprinta (`.SCHLIB`, `.PcbLib`)
+- izlazni i pomoćni fajlovi kao što su `.OutJob` i PDF export
+
+### 3. UI / SquareLine projekat (`sw/`)
+`sw/` više nije samo rezervisan za pomoćne alate, nego sadrži aktivni **SquareLine Studio** projekat:
+- `HotelRoomThermostat.spj`
+- `HotelRoomThermostat.slp`
+- `HotelRoomThermostat.sll`
+- `HotelRoomThermostat_events.py`
+- `assets/`, `boards/`, `backup/`
+- `project.info`
+
+Prema `sw/project.info`, projekat je editovan u **SquareLine Studio 1.6.0**.
+
+## Firmware build i upload
+
+Iz `fw/` direktorija:
 
 ```bash
 platformio run
@@ -37,41 +70,62 @@ platformio run --target upload
 platformio device monitor
 ```
 
-## Hardware Summary (`hw/`)
+Podrazumijevani PlatformIO environment je:
+- `thermostat`
 
-Hardware folder contains the custom thermostat board design package, including:
-- Project files (`.PrjPcb`, schematic, PCB, libraries)
-- Board revisions and production-related outputs
+Ključne biblioteke definisane u `fw/platformio.ini`:
+- `lvgl/lvgl`
+- `moononournation/GFX Library for Arduino`
+- `emelianov/modbus-esp8266`
+- `bblanchon/ArduinoJson`
+- `tzapu/WiFiManager`
 
-Current primary board path:
-- `hw/WallBaseBoard/`
+## Radni tok po komponentama
 
-Recommended versioned source files to keep under git:
-- project file(s)
-- schematic(s)
-- pcb file(s)
-- symbol/footprint libraries
+### Firmware razvoj
+1. Otvori `fw/` u VS Code / PlatformIO okruženju.
+2. Buildaj i flashaj firmware na ESP32-S3 uređaj.
+3. Za serijski log koristi `platformio device monitor`.
 
-Generated artifacts (history snapshots, project logs, fabrication exports) are ignored via root `.gitignore` to keep repository history clean.
+### UI izmjene
+1. Otvori `sw/HotelRoomThermostat.spj` u SquareLine Studio.
+2. Uredi ekrane, teme i assete.
+3. Generisane LVGL fajlove uskladi sa sadržajem u `fw/lvgl/`.
 
-## Git Workflow Recommendation
+### Hardverske izmjene
+1. Otvori `hw/WallBaseBoard/WallBaseBoard.PrjPcb` u Altium Designer-u.
+2. Uredi šemu, PCB i biblioteke po potrebi.
+3. Po potrebi regeneriši proizvodne izlaze i PDF dokumentaciju.
 
-For clean history, use separate commits for:
-1. Firmware code changes (`fw/src`, `fw/include`, `fw/lvgl`, firmware docs)
-2. Hardware source changes (`hw/...` project/schematic/pcb/library files)
-3. Documentation-only changes
+## Dokumentacija
 
-Example commit messages:
-- `feat(fw): adjust fan auto hysteresis for smoother transitions`
-- `feat(hw): update WallBaseBoard relay routing`
-- `docs: update system architecture and pin mapping`
+Dodatna dokumentacija za firmware nalazi se u:
+- `fw/docs/FSD.md`
+- `fw/docs/DIAGRAMS.md`
+- `fw/docs/gemini_analysis.md`
+- `fw/docs/hvac_diagnostics_checklist.md`
 
-## First Steps
+## Preporuka za commit poruke
 
-1. Open `fw/` in VS Code for firmware development.
-2. Use PlatformIO tasks for build/upload.
-3. Use root repository for cross-domain commits (fw + hw).
+Za pregledniju historiju commita preporučeno je razdvojiti izmjene po domenima:
+- `feat(fw): ...` za firmware
+- `feat(hw): ...` za hardver
+- `feat(sw): ...` za SquareLine/UI projekat
+- `docs: ...` za dokumentaciju
 
-## License
+Primjeri:
+- `feat(fw): add ntp sync fallback logic`
+- `feat(sw): update thermostat screen layout`
+- `feat(hw): adjust WallBaseBoard relay routing`
+- `docs: refresh root readme to match repository state`
 
-MIT License. See `fw/LICENSE`.
+## Prvi koraci
+
+1. Ako radiš firmware, kreni iz foldera `fw/`.
+2. Ako radiš UI, koristi `sw/` i SquareLine Studio projekat.
+3. Ako radiš elektroniku, koristi `hw/WallBaseBoard/`.
+4. Za izmjene koje zahvataju više domena koristi root repozitorij kao glavnu tačku rada.
+
+## Licenca
+
+MIT License. Pogledati `fw/LICENSE` ako je prisutan u firmware dijelu projekta.
