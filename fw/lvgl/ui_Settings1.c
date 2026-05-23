@@ -100,7 +100,7 @@ void ui_Settings1_screen_init(void)
     lv_label_set_text(ui_LabelMinTemp, "Min Temp");
 
     ui_DropMinTemp = lv_dropdown_create(ui_Settings1);
-    lv_dropdown_set_options(ui_DropMinTemp, "15\n16\n17\n18\n19\n20");
+    lv_dropdown_set_options(ui_DropMinTemp, "10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20");
     lv_obj_set_width(ui_DropMinTemp, 200);
     lv_obj_set_height(ui_DropMinTemp, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_x(ui_DropMinTemp, -20);
