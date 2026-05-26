@@ -128,6 +128,9 @@ void settings3_loaded_cb(lv_event_t *e)
     if (ui_SpinModbusAddr) lv_spinbox_set_value(ui_SpinModbusAddr, g_sys_cfg.modbus_addr);
 }
 
+// Forward declarations
+void ui_sync_settings_to_widgets(void);
+
 // ── Clean screen timer ────────────────────────────────────────────────────────
 static lv_timer_t *s_clean_timer = NULL;
 static uint8_t     s_clean_secs  = 60;
@@ -295,8 +298,10 @@ void action_clean_start(lv_event_t *e)
         if (ui_LabelCleanMsg) lv_obj_clear_flag(ui_LabelCleanMsg, LV_OBJ_FLAG_HIDDEN);
         if (ui_LabelCleanCountdown) lv_label_set_text(ui_LabelCleanCountdown, "");
 
-        _ui_screen_change(&ui_PinEntry, LV_SCR_LOAD_ANIM_FADE_ON,
-                          500, 0, &ui_PinEntry_screen_init);
+        inactivity_set_on_settings(true);
+        _ui_screen_change(&ui_Settings1, LV_SCR_LOAD_ANIM_FADE_ON,
+                          500, 0, &ui_Settings1_screen_init);
+        ui_sync_settings_to_widgets();
         return;
     }
     // Otherwise timer keeps running (started in action_clean_pressed)
